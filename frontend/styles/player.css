@@ -1,0 +1,142 @@
+/* Dedicated watch view: full-width player with a compact right-hand panel. */
+.watch-shell { display: block; }
+.watch-shell > .sidebar, .watch-shell .page-footer { display: none; }
+.watch-topbar { display: flex; align-items: center; gap: 18px; min-height: 64px; padding: 12px 24px; border-bottom: 1px solid #ffffff12; }
+.watch-topbar > .MuiButton-root { min-width: 32px; padding: 6px; color: var(--muted); }
+.watch-brand { display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 18px; letter-spacing: -.7px; }
+.watch-logo { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 4px; background: var(--accent); color: #102b26; }
+.watch-topbar h1 { margin: 0; font-size: 14px; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.watch-shell .watch-page { max-width: none; padding: 24px; }
+.watch-shell .watch-layout { grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; }
+.watch-shell .player-stage { border-radius: 4px; }
+.watch-shell .episode-panel { padding: 18px; background: #181a1d; border: 1px solid #ffffff1a; border-radius: 4px; }
+.cloud-panel .cloud-episodes { margin: 0; padding: 0; background: transparent; border: 0; border-radius: 0; }
+.cloud-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cloud-panel-heading h2 { font-size: 17px; margin: 0; }
+.cloud-panel-heading > span { color: var(--faint); font-size: 11px; }
+.cloud-line-grid { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+.cloud-line-grid .MuiButton-root { display: flex; justify-content: center; gap: 6px; min-width: 0; padding: 6px 12px; border: 1px solid #ffffff18; background: transparent; color: var(--muted); font-size: 12px; }
+.cloud-line-grid .MuiButton-startIcon { margin: 0; }
+.cloud-line-grid .MuiButton-root[aria-pressed="true"] { color: var(--accent); border-color: #24d3b8a0; background: #24d3b80c; }
+.cloud-panel .cloud-episode-heading { margin-top: 4px; padding-top: 10px; border-top: 1px solid #ffffff12; color: #e1e4e7; font-size: 15px; font-weight: 600; }
+.cloud-panel .episode-grid { max-height: none; overflow-y: visible; padding: 2px; scrollbar-width: thin; }
+.cloud-panel .episode-grid .MuiButton-root { font-size: 11px; padding: 10px; line-height: 1.6; border-color: #ffffff18; }
+@media (max-width: 1100px) { .watch-shell .watch-layout { grid-template-columns: minmax(0, 1fr) 320px; } }
+@media (max-width: 900px) { .watch-shell .watch-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; } .watch-shell .watch-page { padding: 22px; } .watch-shell .episode-panel { padding: 18px; } }
+@media (max-width: 700px) { .watch-shell .watch-layout { grid-template-columns: 1fr; } .watch-topbar { padding: 14px 18px; gap: 10px; } .watch-shell .watch-page { padding: 18px; } }
+
+/* 选集保持小号高度，以最小宽度决定列数，再均分当前行空间；避免短名称挤成密集标签。 */
+.cloud-panel .episode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); align-content: start; align-items: start; gap: 10px; }
+.cloud-panel .episode-grid .episode-tile { position: relative; display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 0; width: 100%; max-width: 144px; min-width: 88px; min-height: 32px; height: 32px; padding: 4px 10px; overflow: hidden; text-align: center; }
+.episode-tile.MuiButton-root { position: relative; }
+.episode-number { position: absolute; top: 1px; left: 4px; font-size: 9px; line-height: 12px; font-weight: 600; opacity: .7; }
+.episode-name { display: block; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.6; }
+.episode-scan-status { margin-left: 10px; color: var(--muted); font-size: 11px; font-weight: 400; }
+.episode-loading-tile { width: 100%; min-width: 88px; max-width: 144px; min-height: 32px; height: 32px; padding: 8px 12px; display: grid; align-content: center; gap: 10px; border: 1px solid #ffffff12; border-radius: 4px; animation: episode-pulse 1.2s ease-in-out infinite alternate; }
+.episode-loading-tile span { height: 8px; background: #ffffff12; border-radius: 3px; }
+.episode-loading-tile span:last-child { width: 40%; justify-self: center; }
+.cloud-panel .episode-grid .episode-tile { animation: episode-appear 180ms ease-out; }
+@keyframes episode-pulse { to { opacity: .35; } }
+@keyframes episode-appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .episode-loading-tile, .cloud-panel .episode-grid .episode-tile { animation: none; } }
+.controlled-player { isolation: isolate; container-type: inline-size; color: #e4e7eb; border-radius: 12px; background: #000; }
+.controlled-player:focus, .controlled-player:focus-visible { outline: none; }
+.controlled-player:fullscreen, .controlled-player.player-screen-fullscreen { border-radius: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+.watch-page:has(.player-screen-fullscreen) { animation: none; }
+.controlled-player.player-screen-fullscreen { position: fixed; inset: 0; z-index: 1400; }
+.controlled-player video { cursor: pointer; }
+.controlled-player:not(.controls-visible):not(:focus-within) { cursor: none; }
+.player-heading { position: absolute; inset: 0 0 auto; display: flex; align-items: flex-start; gap: 20px; padding: 20px 24px 42px; background: linear-gradient(#0008,transparent); pointer-events: none; opacity: 0; transition: opacity 180ms; text-shadow: 0 1px 4px #0008; }
+.player-heading > div { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.player-heading strong { font-size: clamp(14px, 1.5cqw, 20px); font-weight: 500; }
+.player-heading strong, .player-episode { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-episode { font-size: 12px; color: #c1c7ce; }
+.media-controls { position: absolute; bottom: 0; left: 0; right: 0; padding: 54px 18px 12px; background: linear-gradient(transparent, #0006 38%, #000e); opacity: 0; transition: opacity 180ms; pointer-events: none; }
+.controls-visible .media-controls, .media-controls:focus-within { opacity: 1; pointer-events: auto; }
+/* 顶部信息跟随控制栏显示，播放器容器保留焦点时仍允许自动隐藏。 */
+.controls-visible .player-heading, .controlled-player:has(.media-controls:focus-within) .player-heading { opacity: 1; }
+.media-seek { height: 20px; position: relative; display: flex; align-items: center; }
+.media-seek::before { content: ''; position: absolute; left: 0; right: 0; height: 3px; background: #b5c2d24d; }
+.media-seek > span { position: absolute; height: 3px; background: #cad3dd70; pointer-events: none; }
+.media-seek input { position: relative; z-index: 1; width: 100%; margin: 0; height: 3px; cursor: pointer; appearance: none; border: 0; border-radius: 0; }
+.media-seek input::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #fff; border-radius: 50%; opacity: 0; transition: opacity 150ms; }
+.media-seek input::-moz-range-thumb { width: 10px; height: 10px; background: #fff; border: 0; border-radius: 50%; opacity: 0; }
+.media-seek:hover input::-webkit-slider-thumb, .media-seek input:focus-visible::-webkit-slider-thumb { opacity: 1; }
+.media-seek:hover input::-moz-range-thumb, .media-seek input:focus-visible::-moz-range-thumb { opacity: 1; }
+.media-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: #dce1e7; }
+.media-toolbar button { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; padding: 5px; border: 0; border-radius: 4px; color: inherit; background: transparent; cursor: pointer; transition: color 150ms, background 150ms; }
+.media-toolbar button:hover:enabled { background: #ffffff14; color: #fff; }
+.media-toolbar button:disabled { opacity: .25; cursor: default; }
+.media-toolbar svg { font-size: 25px; filter: drop-shadow(0 1px 2px #0004); }
+.media-toolbar .media-play-toggle svg { font-size: 29px; }
+.media-divider { height: 16px; width: 1px; margin-inline: 4px; background: #ffffff26; }
+.media-volume { width: 0; opacity: 0; margin: 0; height: 3px; accent-color: #e4e9ef; cursor: pointer; transition: width 180ms, opacity 180ms; }
+.media-toolbar:has(button[aria-label="静音"]:hover) .media-volume, .media-toolbar:has(button[aria-label="取消静音"]:hover) .media-volume, .media-volume:hover, .media-volume:focus-visible { width: 64px; opacity: 1; }
+.media-time { white-space: nowrap; margin-left: 4px; font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 400; text-shadow: 0 1px 2px #0008; }
+.media-time > span { color: #b9c0c9; }
+.media-spacer { flex: 1; }
+.media-toolbar select { color: inherit; background: transparent; border: 0; border-radius: 4px; padding: 7px 4px; font-size: 12px; cursor: pointer; }
+.media-toolbar select:hover { background: #ffffff14; }
+.media-toolbar option { background: #1b1e23; color: #fff; }
+.player-center-play { position: absolute; display: grid; place-items: center; width: 68px; height: 68px; padding: 0; border: 1px solid #ffffff26; border-radius: 50%; background: #0005; color: #fff; cursor: pointer; }
+.player-center-play:hover { background: #0008; }
+.player-center-play svg { font-size: 42px; }
+.player-center-play span { display: none; }
+.media-controls :focus-visible, .player-center-play:focus-visible { outline: 2px solid #e1e9f1; outline-offset: 3px; }
+.player-overlay-error { position: absolute; top: 100px; left: 20px; right: 20px; z-index: 2; }
+.player-switching { position: absolute; top: 90px; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 8px; background: #14171beb; font-size: 12px; }
+@container (min-width: 1200px) { .media-controls { padding: 70px 22px 16px; } .media-toolbar { gap: 14px; margin-top: 8px; } .media-toolbar button { width: 42px; height: 42px; } .media-toolbar svg { font-size: 29px; } .media-time { font-size: 16px; } .media-toolbar select { font-size: 14px; } }
+@container (max-width: 850px) { .media-toolbar .media-skip, .media-divider { display: none; } .media-toolbar { gap: 5px; } }
+@container (max-width: 520px) { .media-controls { padding: 36px 10px 8px; } .media-toolbar { gap: 2px; } .media-toolbar button { width: 30px; height: 32px; } .media-toolbar svg { font-size: 22px; } .media-time { font-size: 10px; margin-left: 0; } .media-volume { display: none; } .player-heading { padding: 12px 14px 28px; } .player-center-play { width: 48px; height: 48px; } .player-center-play svg { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { .media-controls, .player-heading, .media-toolbar button, .media-volume, .media-seek input::-webkit-slider-thumb { transition: none; } }
+
+
+.watch-primary, .watch-shell .episode-panel { min-width: 0; }
+.watch-information { padding: 20px 0 8px; }
+.watch-information > h2 { font-size: 22px; font-weight: 600; line-height: 1.5; margin: 0 0 6px; }
+.watch-metadata { margin: 0 0 16px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.watch-metadata:empty { display: none; }
+.watch-synopsis-section > h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #e1e4e7; }
+.watch-synopsis { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin: 0; color: #bac2c7; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.watch-synopsis.is-expanded { display: block; -webkit-line-clamp: unset; }
+.watch-synopsis-toggle { display: block; margin-top: 3px; padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 12px; line-height: 1.7; cursor: pointer; }
+.watch-synopsis-toggle:hover { text-decoration: underline; }
+.watch-synopsis-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.watch-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; color: #e1e4e7; font-size: 15px; font-weight: 600; cursor: pointer; list-style: none; }
+.watch-disclosure > summary::-webkit-details-marker { display: none; }
+.watch-disclosure > summary::after { content: '⌄'; color: var(--muted); transition: transform 150ms; }
+.watch-disclosure[open] > summary::after { transform: rotate(180deg); }
+.watch-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.watch-sources { padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid #ffffff12; }
+.watch-sources > .line-switcher { margin: 4px 0 0; padding-bottom: 0; border-bottom: 0; }
+
+.watch-shell .episode-panel { display: flex; flex-direction: column; }
+.watch-current-source { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); font-size: 13px; font-weight: 500; }
+.watch-sources { flex-shrink: 0; max-height: 35dvh; overflow-y: auto; }
+.watch-sources > summary > span:first-child { flex-shrink: 0; }
+.watch-sources .line-switcher .MuiButton-root { background: transparent; border: 1px solid #ffffff20; color: var(--muted); }
+.watch-sources .line-switcher .MuiButton-root[aria-pressed="true"] { color: var(--accent); background: #24d3b812; border-color: #24d3b85c; }
+.cloud-panel-heading, .cloud-panel .cloud-episode-heading, .episode-count, .playback-lines { flex-shrink: 0; }
+.cloud-panel .episode-grid .episode-tile[aria-pressed="true"] { color: var(--accent); background: #24d3b817; border: 1px solid #24d3b85c; box-shadow: none; }
+.playback-lines { margin-bottom: 16px; padding-bottom: 16px; }
+.playback-lines .MuiButton-root[aria-pressed="true"] { color: var(--accent); background: #24d3b817; box-shadow: none; }
+/* 双栏固定操作区高度，只有集数列表滚动；简介随页面自然展开。 */
+@media (min-width: 901px) {
+  .watch-shell .episode-panel { position: sticky; top: 88px; height: calc(100dvh - 112px); min-height: 280px; }
+  .cloud-panel .cloud-episodes { flex: 1; min-height: 0; }
+  .cloud-panel .episode-grid { flex: 1; min-height: 0; overflow-y: auto; align-content: start; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+  .cloud-panel .episode-grid > * { flex-shrink: 0; }
+}
+/* 窄屏先观看和选集，简介排在操作区后面。 */
+@media (max-width: 900px) {
+  .watch-primary { display: contents; }
+  .watch-primary > .watch-information { order: 3; padding-top: 0; }
+  .watch-layout > .episode-panel { order: 2; }
+  .cloud-panel .episode-grid { max-height: 440px; overflow-y: auto; align-content: start; }
+  .watch-sources { max-height: none; }
+}
+
+/* 加载时在画面中央显示状态和当前视频下载速度。 */
+.controlled-player .player-status > div { flex-direction: column; gap: 10px; }
+.player-download-rate { color: #a8b2bd; font-size: 12px; font-variant-numeric: tabular-nums; }

@@ -1,0 +1,18 @@
+/* Anime channel: cached recommendations and regional lists. */
+.anime-section + .anime-section { margin-top: 42px; }
+.anime-section-heading { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.anime-section-heading h2 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.3px; }
+.anime-section-heading > span { color: var(--faint); font-size: 11px; }
+.anime-section-heading .anime-shuffle { color: var(--muted); min-width: 0; padding: 4px 0 4px 12px; font-size: 12px; }
+.anime-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 20px; }
+.anime-grid .discovery-image { aspect-ratio: 16 / 9; }
+.anime-grid .discovery-image > img { object-position: center 30%; }
+.anime-empty { padding: 36px 16px; border-radius: 4px; background: var(--surface); color: var(--muted); font-size: 13px; text-align: center; }
+.anime-feedback { margin-bottom: 16px; }
+@media (max-width: 1100px) { .anime-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px 16px; } }
+@media (max-width: 800px) { .anime-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; } }
+@media (max-width: 450px) { .anime-grid { gap: 18px 12px; } .anime-section-heading > span { display: none; } }
+
+@keyframes anime-shuffle-turn { to { transform: rotate(360deg); } }
+.anime-shuffle-spinning { animation: anime-shuffle-turn .5s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .anime-shuffle-spinning { animation-duration: .01s; } }

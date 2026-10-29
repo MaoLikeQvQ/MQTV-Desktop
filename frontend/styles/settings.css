@@ -1,0 +1,82 @@
+.settings-topbar { padding: 18px 36px 0; border-bottom: 1px solid var(--line); }
+.settings-topbar .MuiTab-root { min-height: 58px; min-width: 120px; text-transform: none; font-size: 14px; }
+.authorization-row { display: flex; align-items: center; gap: 18px; width: 100%; padding: 24px; border: 1px solid var(--line); border-radius: 4px; color: inherit; background: #181a1d; text-align: left; cursor: pointer; }
+.authorization-row:hover { border-color: var(--accent); }
+.authorization-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.authorization-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 4px; background: #f1eaff; color: #7048d9; font-size: 25px; font-weight: 700; flex-shrink: 0; }
+.authorization-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; }
+.authorization-copy strong { font-size: 16px; }
+.authorization-copy > span { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.authorization-copy small { color: var(--faint); font-size: 11px; }
+.authorization-status { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.authorization-status.connected { color: var(--accent); }
+.authorization-qr { display: flex; justify-content: center; align-items: center; min-height: 240px; margin: 12px 0; }
+.authorization-qr img { background: white; border-radius: 4px; image-rendering: pixelated; }
+.authorization-instruction { color: var(--muted); font-size: 13px; text-align: center; line-height: 1.8; }
+@media(max-width:700px) { .settings-topbar { padding-inline: 18px; } .authorization-row { padding: 18px; gap: 12px; } }
+
+.settings-page { padding-top: 24px; }
+.settings-page h1 { font-size: 23px; margin-bottom: 8px; }
+.settings-page .page-description { margin-bottom: 20px; font-size: 12px; }
+.settings-page .settings-panel { max-width: 600px; margin-top: 0; padding: 18px 20px; border-radius: 4px; }
+.settings-page .settings-panel .MuiTextField-root { margin: 14px 0 16px; }
+.settings-page .MuiFormControlLabel-label { font-size: 13px; }
+.settings-page .settings-actions { align-items: center; justify-content: space-between; margin-top: 16px; gap: 16px; }
+.resource-summary { padding: 8px 0 4px; }
+.resource-summary p { margin: 0 0 6px; }
+.resource-summary > span, .resource-connection { font-size: 11px; line-height: 1.7; color: var(--faint); }
+.settings-page .authorization-row { max-width: 600px; padding: 12px 16px; gap: 12px; border-radius: 4px; }
+.settings-page .authorization-icon { width: 36px; height: 36px; border-radius: 4px; font-size: 20px; }
+.settings-page .authorization-copy { gap: 3px; }
+.settings-page .authorization-copy strong { font-size: 13px; }
+.settings-page .authorization-copy > span { font-size: 11px; }
+.settings-page .authorization-copy small { font-size: 10px; }
+.settings-page .authorization-status { font-size: 11px; }
+.resource-settings { width: 100%; max-width: 600px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+.resource-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; }
+.resource-setting-actions { display: flex; align-items: center; gap: 8px; }
+.resource-setting-actions .MuiButton-root { white-space: nowrap; }
+.resource-setting-row label { font-size: 13px; font-weight: 550; }
+.resource-setting-row select { width: 124px; padding: 6px 10px; font-size: 12px; color: inherit; background: #24262a; border: 1px solid #ffffff24; border-radius: 4px; }
+.resource-setting-note { margin: 0; padding: 0 16px 12px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+.custom-resources { padding: 14px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.resource-entry-form { display: flex; align-items: center; gap: 8px; }
+.resource-entry-form .MuiButton-root { flex-shrink: 0; white-space: nowrap; }
+.resource-entry-list { list-style: none; padding: 0; margin: 0; }
+.resource-entry-list li { display: flex; align-items: center; gap: 4px; min-height: 42px; border-top: 1px solid var(--line); }
+.resource-entry-list .MuiButton-root { min-width: 40px; padding-inline: 6px; font-size: 11px; }
+.resource-entry-url { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-active { color: var(--accent); font-size: 11px; padding-inline: 6px; white-space: nowrap; }
+.custom-resources .resource-setting-note { padding: 0; }
+.resource-setting-row { padding: 10px 14px; }
+.resource-setting-row > span { font-size: 13px; font-weight: 550; }
+.resource-setting-row .MuiSelect-select { min-width: 80px; padding: 5px 30px 5px 10px; font-size: 12px; }
+.custom-resources { padding: 10px 14px; gap: 6px; }
+.custom-resources .MuiInputBase-input { padding: 6px 10px; font-size: 12px; }
+.resource-entry-form { gap: 4px; }
+.resource-entry-list li { display: block; min-height: 38px; }
+.resource-entry-main { display: flex; align-items: center; gap: 4px; min-height: 38px; }
+.resource-entry-error { margin: 0 0 8px; font-size: 11px; line-height: 1.6; color: #f28b82; overflow-wrap: anywhere; }
+.resource-entry-count { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.authorization-code-entry { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 600px; padding: 8px 0; color: var(--muted); font-size: 12px; }
+
+.code-dialog .MuiDialog-paper { width: 360px; max-width: calc(100% - 32px); margin: 16px; border: 1px solid #ffffff1c; border-radius: 4px; background: #1b1d20; background-image: none; box-shadow: 0 16px 64px #0008; }
+.code-dialog .MuiDialogTitle-root { display: flex; align-items: center; gap: 9px; padding: 18px 20px 0; font-size: 15px; line-height: 1.5; font-weight: 600; }
+.code-dialog-badge { padding: 2px 5px; border: 1px solid #24d3b84a; border-radius: 4px; font-size: 10px; font-weight: 500; color: var(--accent); background: #24d3b80c; }
+.code-dialog .MuiDialogContent-root { padding: 10px 20px 16px; }
+.code-dialog-description { margin: 0 0 16px; text-align: left; font-size: 12px; line-height: 1.7; color: var(--muted); }
+.code-dialog .MuiOutlinedInput-root { background: #121315; font-size: 13px; }
+.code-dialog .MuiInputBase-input { padding: 9px 11px; }
+.code-dialog .MuiFormHelperText-root { margin: 7px 0 0; font-size: 11px; line-height: 1.6; }
+.code-dialog .MuiDialogActions-root { padding: 12px 20px; border-top: 1px solid var(--line); gap: 6px; background: #16181a; }
+.code-dialog .MuiDialogActions-root .MuiButton-root { min-width: 72px; height: 30px; font-size: 12px; }
+.version-update-actions { display: flex; align-items: center; gap: 10px; }
+.version-current { color: var(--muted); font-size: 12px; }
+.version-update-feedback:has(> *) { padding: 0 14px 14px; }
+.version-update-feedback .resource-setting-note { padding: 0; }
+.version-release-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+
+.resource-parse-status { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
+.resource-parse-status p { margin: 0; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.resource-parse-status .MuiCircularProgress-root { flex-shrink: 0; }

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "晴雨影视",
+  "version": "1.0.0",
+  "identifier": "com.maolike.mqtv.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev:web",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "晴雨影视",
+        "titleBarStyle": "Transparent",
+        "theme": "Dark",
+        "backgroundColor": "#121315",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 680,
+        "minHeight": 520
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "runtime/python/": "runtime/python/",
+      "../runtime/python/": "runtime/worker/"
+    }
+  }
+}

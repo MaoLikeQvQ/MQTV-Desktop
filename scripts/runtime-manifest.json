@@ -1,0 +1,220 @@
+{
+  "pythonVersion": "3.12.12",
+  "release": "20251014",
+  "runtimes": {
+    "darwin-arm64": {
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/cpython-3.12.12+20251014-aarch64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "84cb7acbf75264982c8bdd818bfa1ff0f1eb76007b48a5f3e01d28633b46afdf"
+    },
+    "darwin-x64": {
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/cpython-3.12.12+20251014-x86_64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "f76a921e71e9c8954cccd00f176b7083041527b3b4223670d05bbb2f51209d3f"
+    },
+    "windows-x64": {
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/cpython-3.12.12+20251014-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "3c8b9b10a933909c98b9916297e2093b24a9c2abaa23df1c2622c2bfe052cb94"
+    }
+  },
+  "dependencies": {
+    "requests": {
+      "version": "2.32.5",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "requests-2.32.5-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl",
+          "sha256": "2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"
+        },
+        "darwin-x64": {
+          "filename": "requests-2.32.5-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl",
+          "sha256": "2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"
+        },
+        "windows-x64": {
+          "filename": "requests-2.32.5-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl",
+          "sha256": "2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"
+        }
+      }
+    },
+    "beautifulsoup4": {
+      "version": "4.14.2",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "beautifulsoup4-4.14.2-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/94/fe/3aed5d0be4d404d12d36ab97e2f1791424d9ca39c2f754a6285d59a3b01d/beautifulsoup4-4.14.2-py3-none-any.whl",
+          "sha256": "5ef6fa3a8cbece8488d66985560f97ed091e22bbc4e9c2338508a9d5de6d4515"
+        },
+        "darwin-x64": {
+          "filename": "beautifulsoup4-4.14.2-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/94/fe/3aed5d0be4d404d12d36ab97e2f1791424d9ca39c2f754a6285d59a3b01d/beautifulsoup4-4.14.2-py3-none-any.whl",
+          "sha256": "5ef6fa3a8cbece8488d66985560f97ed091e22bbc4e9c2338508a9d5de6d4515"
+        },
+        "windows-x64": {
+          "filename": "beautifulsoup4-4.14.2-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/94/fe/3aed5d0be4d404d12d36ab97e2f1791424d9ca39c2f754a6285d59a3b01d/beautifulsoup4-4.14.2-py3-none-any.whl",
+          "sha256": "5ef6fa3a8cbece8488d66985560f97ed091e22bbc4e9c2338508a9d5de6d4515"
+        }
+      }
+    },
+    "pycryptodome": {
+      "version": "3.23.0",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "pycryptodome-3.23.0-cp37-abi3-macosx_10_9_universal2.whl",
+          "url": "https://files.pythonhosted.org/packages/db/6c/a1f71542c969912bb0e106f64f60a56cc1f0fabecf9396f45accbe63fa68/pycryptodome-3.23.0-cp37-abi3-macosx_10_9_universal2.whl",
+          "sha256": "187058ab80b3281b1de11c2e6842a357a1f71b42cb1e15bce373f3d238135c27"
+        },
+        "darwin-x64": {
+          "filename": "pycryptodome-3.23.0-cp37-abi3-macosx_10_9_universal2.whl",
+          "url": "https://files.pythonhosted.org/packages/db/6c/a1f71542c969912bb0e106f64f60a56cc1f0fabecf9396f45accbe63fa68/pycryptodome-3.23.0-cp37-abi3-macosx_10_9_universal2.whl",
+          "sha256": "187058ab80b3281b1de11c2e6842a357a1f71b42cb1e15bce373f3d238135c27"
+        },
+        "windows-x64": {
+          "filename": "pycryptodome-3.23.0-cp37-abi3-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/54/2f/e97a1b8294db0daaa87012c24a7bb714147c7ade7656973fd6c736b484ff/pycryptodome-3.23.0-cp37-abi3-win_amd64.whl",
+          "sha256": "c75b52aacc6c0c260f204cbdd834f76edc9fb0d8e0da9fbf8352ef58202564e2"
+        }
+      }
+    },
+    "lxml": {
+      "version": "6.0.2",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "lxml-6.0.2-cp312-cp312-macosx_10_13_universal2.whl",
+          "url": "https://files.pythonhosted.org/packages/f3/c8/8ff2bc6b920c84355146cd1ab7d181bc543b89241cfb1ebee824a7c81457/lxml-6.0.2-cp312-cp312-macosx_10_13_universal2.whl",
+          "sha256": "a59f5448ba2ceccd06995c95ea59a7674a10de0810f2ce90c9006f3cbc044456"
+        },
+        "darwin-x64": {
+          "filename": "lxml-6.0.2-cp312-cp312-macosx_10_13_universal2.whl",
+          "url": "https://files.pythonhosted.org/packages/f3/c8/8ff2bc6b920c84355146cd1ab7d181bc543b89241cfb1ebee824a7c81457/lxml-6.0.2-cp312-cp312-macosx_10_13_universal2.whl",
+          "sha256": "a59f5448ba2ceccd06995c95ea59a7674a10de0810f2ce90c9006f3cbc044456"
+        },
+        "windows-x64": {
+          "filename": "lxml-6.0.2-cp312-cp312-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/f7/d7/0cdfb6c3e30893463fb3d1e52bc5f5f99684a03c29a0b6b605cfae879cd5/lxml-6.0.2-cp312-cp312-win_amd64.whl",
+          "sha256": "72c87e5ee4e58a8354fb9c7c84cbf95a1c8236c127a5d1b7683f04bed8361e1f"
+        }
+      }
+    },
+    "certifi": {
+      "version": "2025.10.5",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "certifi-2025.10.5-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/e4/37/af0d2ef3967ac0d6113837b44a4f0bfe1328c2b9763bd5b1744520e5cfed/certifi-2025.10.5-py3-none-any.whl",
+          "sha256": "0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de"
+        },
+        "darwin-x64": {
+          "filename": "certifi-2025.10.5-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/e4/37/af0d2ef3967ac0d6113837b44a4f0bfe1328c2b9763bd5b1744520e5cfed/certifi-2025.10.5-py3-none-any.whl",
+          "sha256": "0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de"
+        },
+        "windows-x64": {
+          "filename": "certifi-2025.10.5-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/e4/37/af0d2ef3967ac0d6113837b44a4f0bfe1328c2b9763bd5b1744520e5cfed/certifi-2025.10.5-py3-none-any.whl",
+          "sha256": "0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de"
+        }
+      }
+    },
+    "charset-normalizer": {
+      "version": "3.4.4",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "charset_normalizer-3.4.4-cp312-cp312-macosx_10_13_universal2.whl",
+          "url": "https://files.pythonhosted.org/packages/f3/85/1637cd4af66fa687396e757dec650f28025f2a2f5a5531a3208dc0ec43f2/charset_normalizer-3.4.4-cp312-cp312-macosx_10_13_universal2.whl",
+          "sha256": "0a98e6759f854bd25a58a73fa88833fba3b7c491169f86ce1180c948ab3fd394"
+        },
+        "darwin-x64": {
+          "filename": "charset_normalizer-3.4.4-cp312-cp312-macosx_10_13_universal2.whl",
+          "url": "https://files.pythonhosted.org/packages/f3/85/1637cd4af66fa687396e757dec650f28025f2a2f5a5531a3208dc0ec43f2/charset_normalizer-3.4.4-cp312-cp312-macosx_10_13_universal2.whl",
+          "sha256": "0a98e6759f854bd25a58a73fa88833fba3b7c491169f86ce1180c948ab3fd394"
+        },
+        "windows-x64": {
+          "filename": "charset_normalizer-3.4.4-cp312-cp312-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/3d/2d/1e5ed9dd3b3803994c155cd9aacb60c82c331bad84daf75bcb9c91b3295e/charset_normalizer-3.4.4-cp312-cp312-win_amd64.whl",
+          "sha256": "a79cfe37875f822425b89a82333404539ae63dbdddf97f84dcbc3d339aae9525"
+        }
+      }
+    },
+    "idna": {
+      "version": "3.11",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "idna-3.11-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl",
+          "sha256": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea"
+        },
+        "darwin-x64": {
+          "filename": "idna-3.11-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl",
+          "sha256": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea"
+        },
+        "windows-x64": {
+          "filename": "idna-3.11-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl",
+          "sha256": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea"
+        }
+      }
+    },
+    "urllib3": {
+      "version": "2.5.0",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "urllib3-2.5.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl",
+          "sha256": "e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"
+        },
+        "darwin-x64": {
+          "filename": "urllib3-2.5.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl",
+          "sha256": "e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"
+        },
+        "windows-x64": {
+          "filename": "urllib3-2.5.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl",
+          "sha256": "e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"
+        }
+      }
+    },
+    "soupsieve": {
+      "version": "2.8",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "soupsieve-2.8-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/14/a0/bb38d3b76b8cae341dad93a2dd83ab7462e6dbcdd84d43f54ee60a8dc167/soupsieve-2.8-py3-none-any.whl",
+          "sha256": "0cc76456a30e20f5d7f2e14a98a4ae2ee4e5abdc7c5ea0aafe795f344bc7984c"
+        },
+        "darwin-x64": {
+          "filename": "soupsieve-2.8-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/14/a0/bb38d3b76b8cae341dad93a2dd83ab7462e6dbcdd84d43f54ee60a8dc167/soupsieve-2.8-py3-none-any.whl",
+          "sha256": "0cc76456a30e20f5d7f2e14a98a4ae2ee4e5abdc7c5ea0aafe795f344bc7984c"
+        },
+        "windows-x64": {
+          "filename": "soupsieve-2.8-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/14/a0/bb38d3b76b8cae341dad93a2dd83ab7462e6dbcdd84d43f54ee60a8dc167/soupsieve-2.8-py3-none-any.whl",
+          "sha256": "0cc76456a30e20f5d7f2e14a98a4ae2ee4e5abdc7c5ea0aafe795f344bc7984c"
+        }
+      }
+    },
+    "typing_extensions": {
+      "version": "4.15.0",
+      "wheels": {
+        "darwin-arm64": {
+          "filename": "typing_extensions-4.15.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl",
+          "sha256": "f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548"
+        },
+        "darwin-x64": {
+          "filename": "typing_extensions-4.15.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl",
+          "sha256": "f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548"
+        },
+        "windows-x64": {
+          "filename": "typing_extensions-4.15.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl",
+          "sha256": "f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548"
+        }
+      }
+    }
+  }
+}

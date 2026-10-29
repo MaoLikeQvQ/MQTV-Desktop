@@ -1,0 +1,40 @@
+/* Content navigation and discovery use the same palette as the web home. */
+.sidebar-bottom { padding: 24px 0 0; }
+.sidebar-note { margin: 12px 12px 0; }
+.discovery-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+.discovery-heading > span { color: var(--faint); font-size: 11px; }
+.discovery-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+.discovery-filters .MuiButton-root { color: var(--muted); min-width: 0; padding-inline: 14px; }
+.discovery-filters .MuiButton-root[aria-pressed="true"] { color: var(--accent); background: #24d3b812; }
+.discovery-featured { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.discovery-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px 18px; }
+.discovery-card { border: 0; padding: 0; min-width: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.discovery-card:disabled { cursor: default; }
+.discovery-image { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 2 / 3; border-radius: 4px; background: #24262a; overflow: hidden; }
+.discovery-image > img { position: absolute; width: 100%; height: 100%; object-fit: cover; transition: transform 240ms var(--ease-out); }
+.discovery-featured .discovery-image { aspect-ratio: 1.65; }
+.discovery-featured .discovery-image > img { object-position: center 30%; }
+.discovery-title { display: block; margin-top: 12px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.discovery-rating { position: absolute; right: 8px; bottom: 8px; border-radius: 4px; padding: 3px 6px; background: #121315cc; color: #f7c160; font-size: 12px; font-weight: 600; }
+.discovery-skeleton.MuiSkeleton-root { position: absolute; inset: 0; width: 100%; height: 100%; background: #24262a; }
+.discovery-title-skeleton.MuiSkeleton-root { transform: none; background: #24262a; }
+.discovery-card:focus-visible .poster-play { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .discovery-card:enabled:hover .poster-play { opacity: 1; }
+  .discovery-card:enabled:hover .discovery-image > img { transform: scale(1.025); }
+}
+@media (max-width: 1100px) { .discovery-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .discovery-featured { gap: 14px; } }
+@media (max-width: 700px) {
+  .sidebar-bottom { display: block; }
+  .sidebar-bottom .sidebar-note { display: none; }
+  .discovery-heading > span { display: none; }
+  .discovery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 12px; }
+  .discovery-featured { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 450px) { .discovery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .discovery-image > img { transition: none; } }
+
+
+.discovery-continuation > .discovery-grid, .discovery-continuation > .anime-grid { margin-top: 24px; }
+.discovery-load-more { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; min-height: 64px; padding: 16px; color: var(--muted); font-size: 12px; }
+.discovery-load-more [role="alert"] { color: #f28b82; overflow-wrap: anywhere; }
