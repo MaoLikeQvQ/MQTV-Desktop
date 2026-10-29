@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="frontend/assets/images/logo.png" alt="晴雨影视图标" width="96" />
-</p>
 
 # 晴雨影视 · MQTV Desktop
 
