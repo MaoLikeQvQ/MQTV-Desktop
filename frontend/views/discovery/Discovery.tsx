@@ -1,3 +1,4 @@
+import { applicationStorage } from '@/services/storage';
 import { OperationMessage } from '@/views/shared/components/OperationMessage';
 import { DiscoveryContinuation } from '@/views/discovery/components/DiscoveryContinuation';
 import { useEffect, useState, useRef } from 'react';
@@ -9,7 +10,7 @@ import { Button } from '@mui/material';
 import { DiscoveryCard, DiscoverySkeletonCard } from '@/views/discovery/components/DiscoveryCard';
 import { AnimePage } from '@/views/discovery/AnimePage';
 
-const contentCache = createDiscoveryCache(localStorage);
+const contentCache = createDiscoveryCache(applicationStorage);
 const hotLists = [
   { id: 'douban_movie_weekly', label: '一周口碑榜' },
   { id: 'douban_tv_chinese', label: '国产剧' },

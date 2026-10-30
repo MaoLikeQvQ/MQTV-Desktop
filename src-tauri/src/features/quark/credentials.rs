@@ -1,6 +1,7 @@
-use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::{fs, io::ErrorKind, path::Path};
+use tauri::Manager;
 
 // Serialize authorization reads, refreshes, and playback preparation across commands.
 pub(super) use mqtv_netdisk::quark::LOCK;
@@ -14,45 +15,85 @@ pub(super) struct Settings {
     #[serde(default)]
     pub(super) saved: std::collections::BTreeMap<String, String>,
 }
-/// 打开当前系统的夸克授权凭证条目；未配置安全存储的平台返回错误。
-fn entry() -> Result<Entry, String> {
-    if !cfg!(any(target_os = "macos", target_os = "windows")) {
-        return Err("当前平台尚未配置系统安全存储".into());
-    }
-    Entry::new("com.maolike.mqtv.desktop", "quark-authorization")
-        .map_err(|_| "无法打开系统凭证存储".into())
-}
-/// 从系统凭证存储读取授权设置；首次使用时创建默认设置，并在内存中迁移旧后台地址。
-pub(super) fn load() -> Result<Settings, String> {
-    match entry()?.get_password() {
-        Ok(text) => {
-            let mut settings: Settings =
-                serde_json::from_str(&text).map_err(|_| "本地授权数据无效".to_string())?;
-            if matches!(
-                settings.backend.as_str(),
-                "http://127.0.0.1:3101/" | "http://localhost:3101/" | "http://tvadmin.maolike.cn/"
-            ) {
-                settings.backend = crate::config::backend_url()?.to_string();
-            }
-            Ok(settings)
+const SECRET: &str = "quark-authorization";
+
+/// 数据库无授权时迁移旧本地 JSON，成功加密及回读校验后移除明文；不访问系统凭证。
+pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), String> {
+    let legacy = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "无法定位旧应用数据目录")?
+        .join("credentials/quark-authorization.json");
+    if let Some(settings) = read_legacy(&legacy)? {
+        let expected = serde_json::to_vec(&settings).map_err(|_| "授权迁移编码失败")?;
+        let stored = crate::storage::secret_load(SECRET)?;
+        if stored.is_none() {
+            save(&settings)?;
         }
-        Err(keyring::Error::NoEntry) => Ok(Settings {
-            backend: crate::config::backend_url()?.to_string(),
-            lease: None,
-            authorization_code: None,
-            saved: Default::default(),
-        }),
-        Err(_) => Err("无法读取系统凭证存储，请允许钥匙串访问".into()),
+        let restored = crate::storage::secret_load(SECRET)?.ok_or("授权迁移校验失败")?;
+        cleanup_legacy(&legacy, &expected, &restored)?;
     }
-}
-/// 将完整授权设置序列化并写入系统凭证存储，保存失败时返回错误。
-pub(super) fn save(settings: &Settings) -> Result<(), String> {
-    entry()?
-        .set_password(&serde_json::to_string(settings).map_err(|_| "授权保存失败")?)
-        .map_err(|_| "无法保存到系统凭证存储".into())
+    Ok(())
 }
 
-/// 将既有钥匙串格式接入独立网盘包，不更换服务名、账号键或授权结构。
+/// 清理阶段可重复执行；已加密数据与旧文件不一致时保留双方并明确报错。
+fn cleanup_legacy(path: &Path, expected: &[u8], restored: &[u8]) -> Result<(), String> {
+    if restored != expected {
+        return Err("数据库授权与旧明文文件不一致，已保留双方，请先备份并处理旧授权文件".into());
+    }
+    let current = read_legacy(path)?.ok_or("旧授权文件已变化，请重试迁移")?;
+    if serde_json::to_vec(&current).map_err(|_| "旧授权文件编码失败")? != expected {
+        return Err("旧授权文件在迁移期间已变化，已保留原文件".into());
+    }
+    fs::remove_file(path).map_err(|_| "授权已入库，但无法移除旧明文授权文件".into())
+}
+
+/// 真实账号测试必须显式指定独立应用数据目录。
+#[cfg(test)]
+pub(super) fn init_smoke() {
+    crate::storage::init_smoke();
+}
+
+fn normalize(mut settings: Settings) -> Result<Settings, String> {
+    if matches!(
+        settings.backend.as_str(),
+        "http://127.0.0.1:3101/" | "http://localhost:3101/" | "http://tvadmin.maolike.cn/"
+    ) {
+        settings.backend = crate::config::backend_url()?.to_string();
+    }
+    Ok(settings)
+}
+
+fn read_legacy(path: &Path) -> Result<Option<Settings>, String> {
+    match fs::read(path) {
+        Ok(bytes) => {
+            normalize(serde_json::from_slice(&bytes).map_err(|_| "旧本地授权数据无效")?).map(Some)
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(_) => Err("无法读取旧本地授权文件".into()),
+    }
+}
+
+/// 只读取 SQLite 中的加密凭证；缺少记录时返回默认设置，解密失败不回退。
+pub(super) fn load() -> Result<Settings, String> {
+    match crate::storage::secret_load(SECRET)? {
+        Some(bytes) => normalize(serde_json::from_slice(&bytes).map_err(|_| "本地授权数据无效")?),
+        None => Ok(Settings {
+            backend: crate::config::backend_url()?.to_string(),
+            ..Settings::default()
+        }),
+    }
+}
+
+/// 将授权码、账号 Cookie 及转存映射加密保存至 SQLite，不通过前端传递。
+pub(super) fn save(settings: &Settings) -> Result<(), String> {
+    crate::storage::secret_save(
+        SECRET,
+        &serde_json::to_vec(settings).map_err(|_| "授权保存失败")?,
+    )
+}
+
+/// 通过本地数据库接入独立网盘包，保持账号与授权字段格式兼容。
 pub(super) struct Store;
 impl mqtv_netdisk::quark::CredentialStore for Store {
     fn load(&self) -> Result<mqtv_netdisk::quark::Account, String> {
@@ -85,3 +126,7 @@ impl mqtv_netdisk::quark::CredentialStore for Store {
         save(&s)
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/quark/credentials.rs"]
+mod tests;

@@ -159,7 +159,6 @@ pub(crate) async fn adapter_search(source: Source, keyword: String) -> Result<Va
     }
 }
 /// 返回统一影片详情及选集 ID，不把账号凭证嵌入选集或播放历史。
-#[tauri::command]
 pub(crate) async fn adapter_detail(source: Source, id: String) -> Result<Value, String> {
     if id.len() > 4096 {
         return Err("影片 ID 过长".into());
@@ -170,7 +169,6 @@ pub(crate) async fn adapter_detail(source: Source, id: String) -> Result<Value, 
     }
 }
 /// 在原生层解析媒体及请求头，通过现有本地代理只返回回环播放地址。
-#[tauri::command]
 pub(crate) async fn adapter_play(source: Source, id: String) -> Result<Value, String> {
     if id.len() > 4096 {
         return Err("选集 ID 过长".into());

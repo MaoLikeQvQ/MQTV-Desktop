@@ -1,3 +1,4 @@
+import { applicationStorage } from '@/services/storage';
 import { readQuarkInfo, type QuarkEpisode } from '@/api/quark';
 import { scanQuarkEpisodes } from '@/services/quark-episodes';
 import { isQuarkShare } from '@/domain/media/netdisk';
@@ -8,7 +9,7 @@ type Detail = { shares: string[]; synopsis: string };
 /** 从本机持久存储读取解析结果；损坏时明确报错并保留原数据。 */
 function read<T>(kind: string, identity: string): T | null {
   try {
-    const value = localStorage.getItem(PREFIX + JSON.stringify([kind, identity]));
+    const value = applicationStorage.getItem(PREFIX + JSON.stringify([kind, identity]));
     return value === null ? null : JSON.parse(value) as T;
   } catch { throw new Error('无法读取本机线路缓存，请重新进入影片页面重试。'); }
 }
@@ -18,7 +19,7 @@ function write(kind: string, identity: string, value: unknown): void {
   try {
     const key = PREFIX + JSON.stringify([kind, identity]);
     const serialized = JSON.stringify(value);
-    if (localStorage.getItem(key) !== serialized) localStorage.setItem(key, serialized);
+    if (applicationStorage.getItem(key) !== serialized) applicationStorage.setItem(key, serialized);
   }
   catch { throw new Error('线路缓存保存失败，请检查本机存储空间。'); }
 }

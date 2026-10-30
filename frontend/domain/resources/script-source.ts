@@ -10,12 +10,12 @@ export function scriptLanguage(source: Source): ScriptLanguage | null {
     return /\.py$/i.test(url.pathname) ? 'python' : /\.js$/i.test(url.pathname) ? 'javascript' : null;
   } catch { return null; }
 }
-/** 将影响执行的来源配置转换为就绪状态身份，防止同 key 改配置后沿用旧授权状态。 */
+/** 将影响执行的来源配置转换为就绪状态身份，防止同 key 改配置后沿用旧运行环境状态。 */
 export function scriptSourceIdentity(source: Source): string {
   return JSON.stringify([source.key, source.api, source.ext ?? null, source.type, source.resourceUrl ?? null]);
 }
 
-/** 根据当前配置对应的原生就绪状态决定脚本能否搜索，不将未授权来源计入支持范围。 */
+/** 根据当前配置对应的原生运行时状态决定脚本能否搜索；无需逐个授权，首次执行自动检查内容。 */
 export function canSearchScriptSource(source: Source, statuses: Record<string, { ready: boolean }>): boolean {
   return source.enabled !== false && source.searchable !== 0 && !!scriptLanguage(source) && statuses[scriptSourceIdentity(source)]?.ready === true;
 }

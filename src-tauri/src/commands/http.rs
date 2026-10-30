@@ -1,5 +1,4 @@
 /// 请求不含凭证的 HTTP(S) 地址并解析 JSON，限制超时为 15 秒、重定向为 5 次、响应为 8 MiB。
-#[tauri::command]
 pub async fn fetch_json(url: String) -> Result<serde_json::Value, String> {
     let bytes = get_bytes(url, "application/json").await?;
     serde_json::from_slice(&bytes).map_err(|_| "响应不是有效 JSON".into())

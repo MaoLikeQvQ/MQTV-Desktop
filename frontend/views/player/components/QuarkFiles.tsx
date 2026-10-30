@@ -149,6 +149,6 @@ export function QuarkFiles({ detailUrl, directShare, onPlay, onNavigation, onSyn
   return <Stack className="cloud-episodes" spacing={1.25}><div className="cloud-panel-heading"><h2>播放线路</h2><span>{shares.length} 条线路</span></div>
     {shares.length>0 && <div className="cloud-line-grid">{shares.map((s,i)=><Button key={s} disabled={busy || scanning || requestBusy} aria-pressed={share===s} variant={share===s?'contained':'outlined'} onClick={()=>void selectShare(s)}>线路 {i+1}</Button>)}</div>}
     {error && <OperationMessage severity="error">{error}</OperationMessage>}
-    {(!!episodes.length || scanning) && <><p className="cloud-episode-heading">选集 · {episodes.length}{scanning && <span className="episode-scan-status" role="status">正在加载更多…</span>}</p><div className="episode-grid">{episodes.map((episode,index)=><EpisodeButton number={index+1} key={episode.id} name={episode.name} active={playing===episode.id} disabled={busy} onClick={()=>playEpisode(episode)}/>)}{scanning && <div className="episode-loading-tile" aria-hidden="true"><span /><span /></div>}</div></>}
+    {(!!episodes.length || scanning) && <><p className="cloud-episode-heading">选集 · {episodes.length}{scanning && <span className="episode-scan-status" role="status">正在加载更多…</span>}</p><div className="episode-grid">{episodes.map(episode=><EpisodeButton key={episode.id} name={episode.name} active={playing===episode.id} disabled={busy} onClick={()=>playEpisode(episode)}/>)}{scanning && <div className="episode-loading-tile" aria-hidden="true"><span /><span /></div>}</div></>}
   </Stack>;
 }

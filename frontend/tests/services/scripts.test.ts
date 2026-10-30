@@ -3,7 +3,7 @@ import { scriptLanguage, scriptSourceIdentity, canSearchScriptSource } from '@/d
 import { searchSourceMedia, readSourceDetail, resolveSourcePlayback } from '@/services/scripts';
 import { inspectScriptSource, trustScriptSource, readScriptStatus } from '@/api/scripts';
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock('@tauri-apps/api/core', () => ({ invoke }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke, isTauri: () => true }));
 const source = { key: 'js', name: 'JS', type: 3, api: 'https://example.test/drpy2.js', searchable: 1, ext: 'https://example.test/rule.js' };
 beforeEach(() => invoke.mockReset());
 describe('script source protocol', () => {
@@ -38,6 +38,14 @@ describe('script source protocol', () => {
     expect(invoke).toHaveBeenLastCalledWith('script_search', { source, keyword: '动画' });
     await readSourceDetail(source, 'opaque:42');
     expect(invoke).toHaveBeenLastCalledWith('script_detail', { source, id: 'opaque:42' });
+  });
+  it('uses native media transport for ordinary CMS and keeps Quark shares separate', async () => {
+    const cms = { ...source, type: 1, api: 'https://example.test/api' };
+    invoke.mockResolvedValue('http://127.0.0.1:1234/session/stream.m3u8');
+    expect(await resolveSourcePlayback(cms, 'hls', 'https://cdn.test/video.m3u8', [])).toContain('/session/');
+    expect(invoke).toHaveBeenLastCalledWith('media_play', { url: 'https://cdn.test/video.m3u8' });
+    expect(await resolveSourcePlayback(cms, '夸克', 'https://pan.quark.cn/s/test', [])).toBe('https://pan.quark.cn/s/test');
+    expect(invoke).toHaveBeenCalledTimes(1);
   });
   it('retains CMS transport and rejects malformed search response', async () => {
     invoke.mockResolvedValue({ list: [] });

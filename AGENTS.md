@@ -8,25 +8,28 @@
 - `frontend/config/services.ts` owns public environment configuration; `frontend/platform/desktop.ts` owns desktop detection, system/app metadata, concurrency queries, and external-link opening.
 - `frontend/utils/url.ts` validates HTTP URLs and merges encoded query parameters; `utils/request.ts` owns unified JSON transport and normalized errors. Image requests live in `api/images.ts`. Keep timeout/status/size validation in native transport; do not automatically retry requests.
 - Root `.env`/`.env.example` define public service origins; `.env.local` is ignored. `VITE_API_BASE_URL` is shared by Vite and native build configuration (`src-tauri/build.rs` and `src-tauri/src/config.rs`). Never put credentials in VITE variables. Use `MQTV_ENV_MODE` for a custom mode shared by frontend and Rust builds.
-- `frontend/services/images.ts` owns IndexedDB image storage and cache-first loading.
+- `frontend/services/storage.ts` owns the desktop SQLite snapshot/write queue and legacy browser-data import; `frontend/platform/storage.ts` owns native storage commands and exit coordination. `frontend/services/images.ts` owns cache-first loading, native image files, and lazy migration from legacy IndexedDB. Web preview retains browser storage.
 - `frontend/domain/` owns parsers, search grouping/scoring, source policies, cache rules, and update validation. Tests are centralized under `frontend/tests/`, mirroring the relevant configuration, services, and domain directory structure.
 - `frontend/router/` owns channel definitions, page/settings types, and in-memory navigation. Search state remains in the application view across navigation.
 - `frontend/views/` groups discovery, search, player, settings, application composition, and shared components by feature.
 - `frontend/assets/images/` contains local images imported through Vite.
 - `frontend/styles/index.css` preserves CSS import order; `frontend/theme/` owns the MUI theme.
+- `src-tauri/src/player_window.rs` owns the single reusable `player` window and latest-selection handshake. Search and recent history open this window without navigating the main window. `frontend/platform/player-window.ts` owns frontend window IPC. All windows synchronize ordinary SQLite data; native history updates merge individual records. Closing a player only stops its media, while application exit awaits all ready windows.
 - `frontend/main.tsx` mounts the application; root `index.html` is the Vite HTML entry.
 - `src-tauri/src/lib.rs` only assembles plugins, registers native commands, and starts Tauri; `main.rs` remains the desktop entry.
 - `src-tauri/src/commands/` owns generic native capabilities: app/system metadata and build number in `app.rs`, JSON transport in `http.rs`, and image downloading/validation in `images.rs`.
+- `src-tauri/src/storage.rs` owns SQLite schema/versioning, private local files, AES-GCM credential encryption, and native persistence commands. Frontend commands expose only ordinary settings and image caches; never expose the secrets table or encryption key. Script source files remain separate from encrypted runtime state.
+- `crates/parser/` is a Tauri-independent playback parsing library. It owns ParseJob contracts, static HTML extraction, JSON parser calls, total timeout and cancellation. Dynamic WebView/Spider extensions require ParseHost implementations. Keep parser tests under `crates/parser/src/tests/`.
 - Root `Cargo.toml` owns the Cargo workspace, release profile and shared `Cargo.lock`. `crates/netdisk/` is a Tauri-independent library for provider protocols, QR sessions, share files/episodes, transfer/playback and the media proxy. It receives credentials through `CredentialStore`; it must not depend on Tauri, keyring, tvadmin or application environment configuration.
-- `src-tauri/src/features/quark/` owns application credential storage, tvadmin authorization, WoGG source search and Tauri command adapters. Keep the existing command contracts and keyring identity; use the netdisk package shared authorization lock across authorization, login and playback.
+- `src-tauri/src/features/quark/` owns application credential storage, tvadmin authorization, WoGG source search and Tauri command adapters. Store credentials encrypted in application-local SQLite; never call OS credential services or migrate from keychain. Keep the existing command contracts; use the netdisk package shared authorization lock across authorization, login and playback.
 - Native application test sources are centralized under `src-tauri/src/tests/` (`config.rs`, `quark/`); independent netdisk tests live under `crates/netdisk/src/tests/`. Keep `#[cfg(test)]` + `#[path]` child-module references in implementation modules to preserve private access without widening visibility. Quark account/network smoke tests and real QR login remain opt-in and ignored by default.
 - The sibling `maolike-desktop` is an architectural reference, not part of this checkout.
 
 ## Compatibility
 
-- Preserve localStorage keys, IndexedDB database/store names, authorization storage, application identifier, and native command contracts when reorganizing code.
+- Preserve legacy browser storage keys and IndexedDB names for migration/Web preview, authorization field formats, application identifier, and native command contracts when reorganizing code. Desktop business persistence is SQLite in `app_local_data_dir()/mqtv.db`; do not reintroduce localStorage as a second desktop source of truth.
 - Discovery lists compare successful fetch age against one hour at application startup. Reuse within the same run; explicit retry handles failures. Resource subscription caching has its own seven-day policy.
-- Images persist as ArrayBuffer bytes in IndexedDB for WebKit restart compatibility. The image cache is bounded to 128 MiB, with 120 recently used images in memory.
+- Desktop images persist as files with SQLite indexes; legacy IndexedDB ArrayBuffer images migrate on demand and Web preview retains IndexedDB. The image cache is bounded to 128 MiB, with 120 recently used images in memory.
 - Keep existing navigation, search ordering, source integration restrictions, and playback behavior unless a task explicitly changes them.
 
 ## Commands

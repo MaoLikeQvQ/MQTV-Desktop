@@ -1,3 +1,4 @@
+import { applicationStorage } from '@/services/storage';
 import { OperationMessage } from '@/views/shared/components/OperationMessage';
 import { DiscoveryContinuation } from '@/views/discovery/components/DiscoveryContinuation';
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +10,7 @@ import { DiscoveryCard, DiscoverySkeletonCard } from '@/views/discovery/componen
 import { createDiscoveryCache, type DiscoveryCache, type DiscoveryItem } from '@/domain/discovery/discovery-cache';
 import { animeDate, dailyAnime } from '@/domain/discovery/anime';
 
-const cache = createDiscoveryCache(localStorage);
+const cache = createDiscoveryCache(applicationStorage);
 type SourceKey = keyof typeof sources;
 type SectionState = { data: DiscoveryCache | null; loading: boolean; error: string };
 type Sections = Record<SourceKey, SectionState>;

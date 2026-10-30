@@ -6,7 +6,6 @@ use super::{
 pub(super) use mqtv_netdisk::quark::files::share_id;
 use serde_json::Value;
 /// 准备应用授权并读取目录，明确失效时刷新一次。
-#[tauri::command]
 pub async fn quark_files(
     share: String,
     parent: Option<String>,
@@ -34,7 +33,6 @@ pub async fn quark_files(
     }
 }
 /// 在共享授权锁内遍历选集，明确失效时刷新并重新读取。
-#[tauri::command]
 pub async fn quark_episodes(share: String, passcode: Option<String>) -> Result<Value, String> {
     let _guard = LOCK.lock().await;
     let mut s = load()?;

@@ -118,12 +118,10 @@ pub async fn quark_line_search(site: String, keyword: String) -> Result<Vec<Sear
     Ok(parse_search(&html, &base))
 }
 /// 读取线路详情页，提取并去重 HTTPS 夸克分享链接；没有可用链接时返回适配提示。
-#[tauri::command]
 pub async fn quark_line_detail(url: String) -> Result<Vec<String>, String> {
     parse_shares(&line_detail_html(&url).await?)
 }
 /// 读取同一份详情响应中的简介和夸克分享，供详情页展示，避免重复访问站点。
-#[tauri::command]
 pub async fn quark_line_info(url: String) -> Result<serde_json::Value, String> {
     let html = line_detail_html(&url).await?;
     Ok(serde_json::json!({"shares": parse_shares(&html)?, "synopsis": parse_synopsis(&html)}))

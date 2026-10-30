@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokePlayback } from '@/platform/playback-request';
 import { BACKEND_URL } from '@/config/services';
 import { buildRequestUrl, type QueryParams } from '@/utils/url';
 
@@ -17,7 +17,7 @@ export type RequestOptions = { baseURL?: string; params?: QueryParams };
 export async function requestJson<T = unknown>(address: string, options: RequestOptions = {}): Promise<T> {
   try {
     const url = buildRequestUrl(address, options.params, options.baseURL ?? BACKEND_URL);
-    return await invoke<T>('fetch_json', { url });
+    return await invokePlayback<T>('fetch_json', { url });
   } catch (reason) {
     throw reason instanceof Error ? reason : new Error(String(reason));
   }

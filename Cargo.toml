@@ -1,5 +1,5 @@
 [workspace]
-members = ["src-tauri", "crates/netdisk"]
+members = ["src-tauri", "crates/netdisk", "crates/parser"]
 resolver = "3"
 
 [profile.release]

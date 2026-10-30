@@ -1,4 +1,4 @@
-//! 已授权 JS/Python 脚本的下载、摘要绑定、状态与原生命令。
+//! JS/Python 脚本的自动准备、摘要绑定、状态与原生命令。
 mod javascript;
 pub(crate) mod media;
 mod python;
@@ -6,9 +6,10 @@ mod python;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
+#[cfg(test)]
+use std::path::PathBuf;
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
     sync::{Arc, Mutex, OnceLock},
 };
 use tauri::Manager;
@@ -23,7 +24,6 @@ pub struct ScriptBundle {
 #[derive(Serialize, Deserialize)]
 struct Installed {
     bundle: ScriptBundle,
-    trusted: bool,
     #[serde(default)]
     storage: Map<String, Value>,
 }
@@ -43,7 +43,7 @@ fn script_url(input: &str) -> Result<reqwest::Url, String> {
     }
     Ok(url)
 }
-/// 按配置而非来源名称隔离脚本授权，修改 api/ext 后必须重新检查。
+/// 按来源配置隔离本地缓存，修改 api/ext 后首次调用重新下载。
 fn identity(source: &Value) -> String {
     format!("{:x}", Sha256::digest(serde_json::to_vec(&json!({"key":source["key"],"resourceUrl":source["resourceUrl"],"api":source["api"],"ext":source["ext"],"type":source["type"]})).unwrap()))
 }
@@ -59,25 +59,33 @@ fn language(source: &Value) -> Result<&'static str, String> {
         _ => Err("尚不支持此脚本入口格式".into()),
     }
 }
-/// 获取应用私有脚本缓存文件，不读取或更改现有夸克存储。
-fn location(app: &tauri::AppHandle, source: &Value) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| "无法读取应用目录")?
-        .join("scripts-v1");
-    std::fs::create_dir_all(&dir).map_err(|_| "无法创建脚本目录")?;
-    Ok(dir.join(format!("{}.json", identity(source))))
+#[derive(Serialize, Deserialize)]
+struct ScriptState {
+    digest: String,
+    storage: Map<String, Value>,
 }
-/// 加载已检查的固定脚本版本，缓存损坏时拒绝执行。
-fn load(app: &tauri::AppHandle, source: &Value) -> Result<Installed, String> {
-    let bytes = std::fs::read(location(app, source)?).map_err(|_| "请先检查并授权此脚本")?;
-    let installed: Installed =
-        serde_json::from_slice(&bytes).map_err(|_| "脚本缓存损坏，请重新检查".to_string())?;
-    if bundle_digest(&installed.bundle) != installed.bundle.digest {
-        return Err("脚本缓存内容与授权摘要不一致，请重新检查".into());
+
+/// 仅从当前本地缓存读取脚本和运行状态，校验摘要；不读取或迁移旧目录。
+fn load(_app: &tauri::AppHandle, source: &Value) -> Result<Installed, String> {
+    let id = identity(source);
+    let bytes = crate::storage::secret_load(&format!("script:{id}"))?.ok_or("脚本尚未缓存")?;
+    let state: ScriptState = serde_json::from_slice(&bytes).map_err(|_| "脚本状态损坏")?;
+    if state.digest.len() != 64 || !state.digest.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err("脚本摘要无效".into());
     }
-    Ok(installed)
+    let path = crate::storage::data_root()?
+        .join("scripts")
+        .join(&id)
+        .join(format!("{}.json", state.digest));
+    let bytes = std::fs::read(path).map_err(|_| "无法读取本地脚本缓存")?;
+    let bundle: ScriptBundle = serde_json::from_slice(&bytes).map_err(|_| "脚本缓存损坏")?;
+    if bundle.digest != state.digest || bundle_digest(&bundle) != state.digest {
+        return Err("脚本缓存内容与摘要不一致，请重新检查".into());
+    }
+    Ok(Installed {
+        bundle,
+        storage: state.storage,
+    })
 }
 /// 将全部可执行内容绑定到稳定摘要，缓存读取时重新核对。
 fn bundle_digest(bundle: &ScriptBundle) -> String {
@@ -91,18 +99,30 @@ fn bundle_digest(bundle: &ScriptBundle) -> String {
         )
     )
 }
-/// 先写临时文件再替换缓存，避免写入中断产生半份授权。
-fn save(app: &tauri::AppHandle, source: &Value, installed: &Installed) -> Result<(), String> {
-    let path = location(app, source)?;
-    let temp = path.with_extension("tmp");
-    std::fs::write(
-        &temp,
-        serde_json::to_vec(installed).map_err(|_| "脚本缓存编码失败")?,
+/// 源码首次完整落盘，后续复用同一文件；运行状态单独保存，失败不切换缓存版本。
+fn save(_app: &tauri::AppHandle, source: &Value, installed: &Installed) -> Result<(), String> {
+    if bundle_digest(&installed.bundle) != installed.bundle.digest {
+        return Err("脚本缓存摘要无效".into());
+    }
+    let id = identity(source);
+    let path = crate::storage::data_root()?
+        .join("scripts")
+        .join(&id)
+        .join(format!("{}.json", installed.bundle.digest));
+    let bytes = serde_json::to_vec(&installed.bundle).map_err(|_| "脚本缓存编码失败")?;
+    if std::fs::read(&path).ok().as_ref() != Some(&bytes) {
+        crate::storage::write_file(&path, &bytes)?;
+    }
+    let state = ScriptState {
+        digest: installed.bundle.digest.clone(),
+        storage: installed.storage.clone(),
+    };
+    crate::storage::secret_save(
+        &format!("script:{id}"),
+        &serde_json::to_vec(&state).map_err(|_| "脚本状态编码失败")?,
     )
-    .map_err(|_| "脚本缓存写入失败")?;
-    std::fs::rename(temp, path).map_err(|_| "脚本缓存替换失败".to_string())
 }
-/// 来源级互斥，禁止相同脚本并发覆盖缓存或授权状态。
+/// 来源级互斥，首次使用只准备一份缓存，禁止同来源并发覆盖运行状态。
 fn source_lock(source: &Value) -> Result<Arc<tokio::sync::Mutex<()>>, String> {
     let mut locks = LOCKS
         .get_or_init(Default::default)
@@ -150,7 +170,14 @@ async fn inspect(source: &Value) -> Result<ScriptBundle, String> {
             return Err("脚本及依赖超过 8 MiB".into());
         }
         if kind == "javascript" {
-            for specifier in javascript::static_imports(url.as_str(), &code)? {
+            let module_name = url.to_string();
+            let module_code = code.clone();
+            let imports = tauri::async_runtime::spawn_blocking(move || {
+                javascript::static_imports(&module_name, &module_code)
+            })
+            .await
+            .map_err(|_| "脚本检查任务异常")??;
+            for specifier in imports {
                 if !(specifier.starts_with('.')
                     || specifier.starts_with('/')
                     || specifier.starts_with("http"))
@@ -190,27 +217,26 @@ async fn inspect(source: &Value) -> Result<ScriptBundle, String> {
         digest,
     })
 }
-/// 列出内置运行时和当前来源的授权状态；不自动下载或运行任何脚本。
+/// 列出来源的运行时可用状态；内容在首次调用时自动检查，不要求手动授权。
 #[tauri::command]
 pub async fn script_status(app: tauri::AppHandle, sources: Vec<Value>) -> Result<Value, String> {
     let python = python::runtime_path(&app).is_ok();
     let items: Vec<Value> = sources.iter().filter(|s| language(s).is_ok()).map(|s| {
         let available = language(s).ok() != Some("python") || python;
-        let trusted = load(&app,s).map(|v| v.trusted).unwrap_or(false);
-        json!({"key":s["key"],"ready":available && trusted,"reason":if !available {"内置 Python 运行时尚未准备"} else if !trusted {"请检查并授权脚本"} else {"运行环境已就绪；来源连通性待实际验证"}})
+        json!({"key":s["key"],"ready":available,"reason":if !available {"内置 Python 运行时尚未准备"} else {"运行环境已就绪；首次调用自动检查脚本，来源连通性待实际验证"}})
     }).collect();
     Ok(json!({"javascript":true,"python":python,"sources":items}))
 }
-/// 检查并缓存脚本固定版本，内容变化时取消旧授权，不执行下载的代码。
+/// 检查并缓存脚本固定版本；无需手动授权，内容变化时清空旧版本状态，不执行下载的代码。
 #[tauri::command]
 pub async fn script_inspect(app: tauri::AppHandle, source: Value) -> Result<Value, String> {
     let lock = source_lock(&source)?;
     let _guard = lock.lock().await;
     let bundle = inspect(&source).await?;
     let old = load(&app, &source).ok();
-    let trusted = old
+    let unchanged = old
         .as_ref()
-        .is_some_and(|v| v.trusted && v.bundle.digest == bundle.digest);
+        .is_some_and(|v| v.bundle.digest == bundle.digest);
     let result =
         json!({"digest":bundle.digest,"files":bundle.modules.len(),"language":language(&source)?});
     save(
@@ -218,8 +244,7 @@ pub async fn script_inspect(app: tauri::AppHandle, source: Value) -> Result<Valu
         &source,
         &Installed {
             bundle,
-            trusted,
-            storage: if trusted {
+            storage: if unchanged {
                 old.unwrap().storage
             } else {
                 Map::new()
@@ -228,7 +253,7 @@ pub async fn script_inspect(app: tauri::AppHandle, source: Value) -> Result<Valu
     )?;
     Ok(result)
 }
-/// 只授权用户已看见的检查摘要，防止检查与授权之间内容被替换。
+/// 保留命令契约，仅核对已缓存摘要；正常调用无需授权。
 #[tauri::command]
 pub async fn script_trust(
     app: tauri::AppHandle,
@@ -237,29 +262,41 @@ pub async fn script_trust(
 ) -> Result<(), String> {
     let lock = source_lock(&source)?;
     let _guard = lock.lock().await;
-    let mut installed = load(&app, &source)?;
+    let installed = load(&app, &source)?;
     if installed.bundle.digest != digest {
         return Err("脚本版本已变化，请重新检查".into());
     }
-    installed.trusted = true;
-    save(&app, &source, &installed)
+    Ok(())
 }
-/// 执行已授权固定版本，同来源串行；过期调用不写入缓存。
+/// 首次调用下载并缓存源码，后续及重启后复用本地快照，不访问旧数据目录。
+async fn prepare(app: &tauri::AppHandle, source: &Value) -> Result<Installed, String> {
+    let id = identity(source);
+    if crate::storage::secret_load(&format!("script:{id}"))?.is_some() {
+        return load(app, source);
+    }
+    let installed = Installed {
+        bundle: inspect(source).await?,
+        storage: Map::new(),
+    };
+    save(app, source, &installed)?;
+    Ok(installed)
+}
+
+/// 自动准备固定版本并在后台执行，同来源串行；过期调用不写入缓存。
 async fn execute(
     app: tauri::AppHandle,
     source: Value,
     action: &'static str,
     args: Value,
 ) -> Result<Value, String> {
+    let signal = crate::request_scope::current();
     let generation = GENERATION.load(std::sync::atomic::Ordering::SeqCst);
     let lock = source_lock(&source)?;
     let _guard = lock.lock().await;
-    if GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation {
+    if signal.as_ref().is_some_and(|signal| signal.is_cancelled())
+        || GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation
+    {
         return Err("插件调用已取消".into());
-    }
-    let mut installed = load(&app, &source)?;
-    if !installed.trusted {
-        return Err("脚本尚未授权".into());
     }
     let kind = language(&source)?;
     let runtime = if kind == "python" {
@@ -267,13 +304,20 @@ async fn execute(
     } else {
         None
     };
+    let mut installed = prepare(&app, &source).await?;
+    if signal.as_ref().is_some_and(|signal| signal.is_cancelled())
+        || GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation
+    {
+        return Err("插件调用已取消".into());
+    }
     let resource = app
         .path()
         .resource_dir()
         .map_err(|_| "无法读取运行时目录")?;
+    let worker_signal = signal.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let value = if let Some(runtime) = runtime {
-            python::execute(
+            python::execute_scoped(
                 &runtime,
                 &resource,
                 &installed.bundle,
@@ -281,15 +325,24 @@ async fn execute(
                 &args,
                 &mut installed.storage,
                 generation,
+                worker_signal,
             )
         } else {
-            javascript::execute(&installed.bundle, action, &args, &mut installed.storage)
+            javascript::execute_scoped(
+                &installed.bundle,
+                action,
+                &args,
+                &mut installed.storage,
+                worker_signal,
+            )
         }?;
         Ok::<_, String>((value, installed))
     })
     .await
     .map_err(|_| "插件任务异常")??;
-    if GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation {
+    if signal.as_ref().is_some_and(|signal| signal.is_cancelled())
+        || GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation
+    {
         return Err("插件调用已取消".into());
     }
     if serde_json::to_vec(&result.1.storage)
@@ -302,7 +355,7 @@ async fn execute(
     save(&app, &source, &result.1)?;
     Ok(result.0)
 }
-/// 在已授权插件中搜索片名，并校验输出列表。
+/// 在本地缓存的插件中搜索片名，并校验输出列表。
 #[tauri::command]
 pub async fn script_search(
     app: tauri::AppHandle,
@@ -316,7 +369,6 @@ pub async fn script_search(
     Ok(value)
 }
 /// 从插件读取影片详情，保留原始选集标识。
-#[tauri::command]
 pub async fn script_detail(
     app: tauri::AppHandle,
     source: Value,
@@ -341,7 +393,6 @@ fn needs_web_parser(value: &Value) -> bool {
         .is_some_and(|url| !url.trim().is_empty())
 }
 /// 调用插件播放解析，拒绝需要网页嗅探的结果并代理必要的媒体请求头。
-#[tauri::command]
 pub async fn script_play(
     app: tauri::AppHandle,
     source: Value,
@@ -429,7 +480,7 @@ pub async fn script_play(
         .unwrap_or(json!({}));
     Ok(json!({"url":media::start(url,headers).await?}))
 }
-/// 取消待处理调用并关闭脚本媒体代理，保留已授权版本。
+/// 取消待处理调用并关闭脚本媒体代理，保留本地脚本缓存。
 #[tauri::command]
 pub async fn script_cancel() {
     shutdown();

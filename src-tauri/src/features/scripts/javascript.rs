@@ -11,7 +11,6 @@ use rquickjs::{
 use serde_json::{Map, Value, json};
 use std::{
     collections::BTreeMap,
-    io::Read,
     time::{Duration, Instant},
 };
 
@@ -114,8 +113,26 @@ fn http_url(value: &str) -> Result<Url, String> {
     }
     Ok(url)
 }
-/// 执行同步规则网络请求，限制总时限、响应大小、方法和编码。
+/// 同步宿主桥接到可取消的异步 HTTP，保持规则侧同步契约。
+#[cfg(test)]
 fn request(url: &str, options: &str, deadline: Instant) -> Result<Value, String> {
+    request_scoped(url, options, deadline, None)
+}
+
+fn request_scoped(
+    url: &str,
+    options: &str,
+    deadline: Instant,
+    signal: Option<crate::request_scope::Signal>,
+) -> Result<Value, String> {
+    tauri::async_runtime::block_on(crate::request_scope::cancellable(
+        signal,
+        request_async(url, options, deadline),
+    ))
+}
+
+/// 执行异步 HTTP；取消时丢弃请求和响应流，不让阻塞规则继续等待服务器超时。
+async fn request_async(url: &str, options: &str, deadline: Instant) -> Result<Value, String> {
     let url = http_url(url)?;
     let options: Value = serde_json::from_str(options).map_err(|_| "请求参数无效")?;
     let remaining = deadline
@@ -125,7 +142,7 @@ fn request(url: &str, options: &str, deadline: Instant) -> Result<Value, String>
         return Err("JS 执行超时".into());
     }
     let follow = options["redirect"].as_i64() != Some(0);
-    let client = reqwest::blocking::Client::builder()
+    let client = reqwest::Client::builder()
         .timeout(remaining)
         .redirect(if follow {
             reqwest::redirect::Policy::limited(5)
@@ -154,7 +171,7 @@ fn request(url: &str, options: &str, deadline: Instant) -> Result<Value, String>
     } else if let Some(data) = options["data"].as_object() {
         req = req.form(data);
     }
-    let response = req.send().map_err(|error| {
+    let mut response = req.send().await.map_err(|error| {
         let _ = error;
         "脚本网络请求失败或超时".to_string()
     })?;
@@ -165,12 +182,11 @@ fn request(url: &str, options: &str, deadline: Instant) -> Result<Value, String>
         .filter_map(|(k, v)| v.to_str().ok().map(|v| (k.to_string(), json!(v))))
         .collect();
     let mut bytes = Vec::new();
-    response
-        .take((MAX_BYTES + 1) as u64)
-        .read_to_end(&mut bytes)
-        .map_err(|_| "脚本响应读取失败")?;
-    if bytes.len() > MAX_BYTES {
-        return Err("脚本响应超过 8 MiB".into());
+    while let Some(chunk) = response.chunk().await.map_err(|_| "脚本响应读取失败")? {
+        if bytes.len() + chunk.len() > MAX_BYTES {
+            return Err("脚本响应超过 8 MiB".into());
+        }
+        bytes.extend_from_slice(&chunk);
     }
     let content = if options["buffer"].as_i64() == Some(2) {
         STANDARD.encode(&bytes)
@@ -228,30 +244,50 @@ fn js_error(ctx: &Ctx<'_>, error: Error) -> String {
     "JS 插件运行或模块加载失败".into()
 }
 /// 在独立且有时限/内存上限的 QuickJS 上下文中执行已信任插件；状态通过显式 storage 返回。
+#[cfg(test)]
 pub fn execute(
     bundle: &super::ScriptBundle,
     action: &str,
     args: &Value,
     storage: &mut Map<String, Value>,
 ) -> Result<Value, String> {
+    execute_scoped(bundle, action, args, storage, None)
+}
+
+/// 按本次窗口调用信号执行规则；计算循环及宿主 HTTP 均响应取消，取消不回写状态。
+pub(super) fn execute_scoped(
+    bundle: &super::ScriptBundle,
+    action: &str,
+    args: &Value,
+    storage: &mut Map<String, Value>,
+    signal: Option<crate::request_scope::Signal>,
+) -> Result<Value, String> {
+    if signal.as_ref().is_some_and(|signal| signal.is_cancelled()) {
+        return Err("脚本调用已取消".into());
+    }
     let runtime = Runtime::new().map_err(|e| e.to_string())?;
     runtime.set_memory_limit(96 * 1024 * 1024);
     runtime.set_max_stack_size(1024 * 1024);
     let generation = super::GENERATION.load(std::sync::atomic::Ordering::SeqCst);
     let deadline = Instant::now() + Duration::from_secs(30);
+    let interrupt_signal = signal.clone();
     runtime.set_interrupt_handler(Some(Box::new(move || {
-        Instant::now() >= deadline
+        interrupt_signal
+            .as_ref()
+            .is_some_and(|signal| signal.is_cancelled())
+            || Instant::now() >= deadline
             || super::GENERATION.load(std::sync::atomic::Ordering::Relaxed) != generation
     })));
     runtime.set_loader(BundleResolver, BundleLoader(bundle.modules.clone()));
     let context = Context::full(&runtime).map_err(|e| e.to_string())?;
+    let result_signal = signal.clone();
     context.with(|ctx| -> Result<Value,String> {
         let run = || -> rquickjs::Result<(String,String)> {
             let globals=ctx.globals();
             globals.set("__request",Function::new(ctx.clone(),move |url:String,options:String| {
-                if super::GENERATION.load(std::sync::atomic::Ordering::Relaxed) != generation { return envelope(Err("脚本调用已取消".into())); }
-                let result = request(&url,&options,deadline);
-                if super::GENERATION.load(std::sync::atomic::Ordering::Relaxed) != generation { return envelope(Err("脚本调用已取消".into())); }
+                if signal.as_ref().is_some_and(|signal| signal.is_cancelled()) || super::GENERATION.load(std::sync::atomic::Ordering::Relaxed) != generation { return envelope(Err("脚本调用已取消".into())); }
+                let result = request_scoped(&url,&options,deadline,signal.clone());
+                if signal.as_ref().is_some_and(|signal| signal.is_cancelled()) || super::GENERATION.load(std::sync::atomic::Ordering::Relaxed) != generation { return envelope(Err("脚本调用已取消".into())); }
                 envelope(result)
             })?)?;
             globals.set("__join",Function::new(ctx.clone(),|base:String,path:String| envelope(http_url(&base).and_then(|u|u.join(&path).map(|u|json!(u.to_string())).map_err(|_|"URL 合并失败".into()))))?)?;
@@ -283,6 +319,7 @@ pub fn execute(
         };
         let (output,next_storage)=run().map_err(|e|js_error(&ctx,e))?;
         if output.len()>MAX_BYTES || next_storage.len()>1024*1024 { return Err("插件输出超过限制".into()); }
+        if result_signal.as_ref().is_some_and(|signal| signal.is_cancelled()) { return Err("脚本调用已取消".into()); }
         *storage=serde_json::from_str(&next_storage).map_err(|_|"插件存储格式无效")?;
         serde_json::from_str(&output).map_err(|_|"插件输出不是有效 JSON".into())
     })

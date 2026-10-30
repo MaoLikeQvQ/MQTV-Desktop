@@ -4,7 +4,6 @@ use super::{
 };
 use serde_json::Value;
 /// 准备应用授权并调用网盘包；失效后只刷新账号，不自动重复转存。
-#[tauri::command]
 pub async fn quark_play(
     share: String,
     parent: String,

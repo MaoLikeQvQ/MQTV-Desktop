@@ -25,13 +25,28 @@
 @media (max-width: 760px) { .cloud-episodes { padding: 16px; } }
 
 
-.history-card { min-width: 0; }
-.history-card .result-card { width: 100%; height: 200px; min-height: 200px; }
-.history-card .result-poster { width: 120px; min-width: 120px; min-height: 0; overflow: hidden; }
-.history-card .result-title { min-height: 45px; }
-.history-card .result-remarks { margin-top: 8px; }
-.history-progress { width: 100%; height: 4px; margin: 10px 0; accent-color: var(--accent); }
-.history-date { font-size: 10px; color: var(--muted); margin-bottom: 10px; }
+/* 最近播放仅展示海报、进度与片名，删除操作在交互时出现。 */
+.history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 24px 18px; }
+.history-card { position: relative; min-width: 0; }
+.history-resume { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; color: inherit; cursor: pointer; }
+.history-poster { position: relative; display: block; aspect-ratio: 2 / 3; overflow: hidden; border-radius: 6px; background: #1f2125; }
+.history-poster img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 180ms; }
+.history-resume:hover .history-poster img { transform: scale(1.035); }
+.history-poster .result-no-poster { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 100%; color: var(--faint); font-size: 12px; }
+.history-title { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-top: 9px; font-size: 13px; line-height: 1.6; }
+.history-resume:hover .history-title { color: var(--accent); }
+.history-progress { position: absolute; inset: auto 0 0; display: block; appearance: none; width: 100%; height: 3px; margin: 0; border: 0; border-radius: 0; background: #ffffff40; accent-color: var(--accent); }
+.history-progress::-webkit-progress-bar { background: #ffffff40; }
+.history-progress::-webkit-progress-value { background: var(--accent); }
+.history-progress::-moz-progress-bar { background: var(--accent); }
+.history-remove { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 26px; height: 26px; padding: 3px; border: 0; border-radius: 50%; background: #000a; color: #fff; opacity: 0; cursor: pointer; transition: opacity 150ms, background 150ms; }
+.history-remove svg { font-size: 17px; }
+.history-card:hover .history-remove, .history-card:focus-within .history-remove { opacity: 1; }
+.history-remove:hover { background: #000e; }
+@media (hover: none) { .history-remove { opacity: 1; } }
+@media (max-width: 600px) { .history-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 18px 12px; } }
+@media (prefers-reduced-motion: reduce) { .history-poster img, .history-remove { transition: none; } }
+
 
 /* 搜索结果采用紧凑卡片；不影响最近播放的进度卡片。 */
 .search-page .result-card { min-height: 144px; height: 144px; }
@@ -43,3 +58,22 @@
 .search-page .result-tags > span { padding: 1px 5px; font-size: 10px; }
 .search-page .result-remarks { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .search-page .result-action { padding-top: 6px; font-size: 11px; }
+
+/* 搜索框下的紧凑关键词面板，覆盖页面而不推动内容。 */
+.top-search { position: relative; }
+.search-suggestions { position: absolute; top: calc(100% + 5px); left: 0; right: 0; padding: 16px; max-height: min(440px, calc(100dvh - 120px)); overflow-y: auto; background: #1f2125; border: 1px solid #24d3b84d; border-radius: 6px; box-shadow: 0 12px 32px #0005; }
+.search-suggestions section + section { border-top: 1px solid #ffffff0d; margin-top: 14px; padding-top: 14px; }
+.search-suggestion-heading { display: flex; justify-content: space-between; align-items: center; min-height: 28px; gap: 10px; margin-bottom: 6px; }
+.search-suggestion-heading h2 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: 12px; font-weight: 500; }
+.search-suggestion-heading h2 svg { font-size: 16px; }
+.search-suggestion-heading > span { color: var(--faint); font-size: 10px; }
+.search-suggestion-heading .MuiButton-root { min-width: 0; padding: 2px 5px; font-size: 11px; color: var(--faint); }
+.search-keywords { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.search-keywords .MuiButton-root { min-width: 0; max-width: 100%; padding: 4px 7px; font-size: 12px; line-height: 1.6; color: #d5d8dc; text-align: left; overflow-wrap: anywhere; }
+.search-keywords .MuiButton-root:hover { color: var(--accent); background: #24d3b80b; }
+.search-history-word { display: inline-flex; align-items: center; max-width: 100%; }
+.search-history-word .MuiButton-root { min-width: 0; }
+.search-word-remove { flex-shrink: 0; padding: 4px; border: 0; background: transparent; color: var(--faint); cursor: pointer; font-size: 13px; }
+.search-word-remove:hover { color: var(--accent); }
+.search-suggestion-note { margin: 4px 0; color: var(--faint); font-size: 12px; line-height: 1.8; }
+.search-suggestion-note .MuiButton-root { margin-left: 6px; font-size: 11px; }

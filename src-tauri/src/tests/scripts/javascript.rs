@@ -20,10 +20,20 @@ fn static_dependencies_follow_javascript_syntax_without_execution() {
     "#;
     assert_eq!(
         static_imports("https://fixture.invalid/main.js", source).unwrap(),
-        vec!["./all.js", "./escaped.js", "./reexport.js", "./side-effect.js", "./value.js"]
+        vec![
+            "./all.js",
+            "./escaped.js",
+            "./reexport.js",
+            "./side-effect.js",
+            "./value.js"
+        ]
     );
     assert_eq!(
-        static_imports("https://fixture.invalid/main.js", "import fs from 'node:fs';").unwrap(),
+        static_imports(
+            "https://fixture.invalid/main.js",
+            "import fs from 'node:fs';"
+        )
+        .unwrap(),
         vec!["node:fs"]
     );
     assert!(static_imports("https://fixture.invalid/main.js", "export default {").is_err());
@@ -226,4 +236,85 @@ fn reviewed_real_rule_search_smoke() {
         }
         Err(e) => panic!("real_rule_failure={e}"),
     }
+}
+
+#[test]
+fn failed_invocation_does_not_break_the_next_runtime() {
+    let mut storage = Map::new();
+    let broken = bundle("export default {search(){throw new Error('fixture failure')}}");
+    assert!(execute(&broken, "search", &json!({}), &mut storage).is_err());
+    let working =
+        bundle("export default {search(){return {list:[{vod_id:'ok',vod_name:'恢复'}]}}}");
+    let response = execute(&working, "search", &json!({}), &mut storage).unwrap();
+    assert_eq!(response["list"][0]["vod_id"], "ok");
+}
+
+#[test]
+fn scoped_cancellation_interrupts_compute_without_cancelling_other_scripts() {
+    let signal = crate::request_scope::Signal::new();
+    let worker_signal = signal.clone();
+    let started = Instant::now();
+    let worker = std::thread::spawn(move || {
+        let mut state = Map::from_iter([("preserved".into(), json!(true))]);
+        let result = execute_scoped(
+            &bundle("export default {search(){local.set('rule','changed',1); while(true){} }}"),
+            "search",
+            &json!({}),
+            &mut state,
+            Some(worker_signal),
+        );
+        (result, state)
+    });
+    std::thread::sleep(Duration::from_millis(40));
+    signal.cancel();
+    let (result, state) = worker.join().unwrap();
+    assert!(result.is_err());
+    assert_eq!(state, Map::from_iter([("preserved".into(), json!(true))]));
+    assert!(started.elapsed() < Duration::from_secs(3));
+    // 另一个窗口未绑定这个信号，正常规则仍可执行。
+    assert!(
+        execute(
+            &bundle("export default {search(){return {list:[]}}}"),
+            "search",
+            &json!({}),
+            &mut Map::new()
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn scoped_cancellation_drops_inflight_http_before_response_arrives() {
+    use std::io::Read;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (accepted, received) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let mut request = [0; 4096];
+        assert!(socket.read(&mut request).unwrap() > 0);
+        accepted.send(()).unwrap();
+        // 不返回响应，客户端应在窗口取消后断开连接。
+        let mut byte = [0; 1];
+        socket.read(&mut byte).unwrap()
+    });
+    let signal = crate::request_scope::Signal::new();
+    let worker_signal = signal.clone();
+    let worker = std::thread::spawn(move || {
+        request_scoped(
+            &format!("http://{address}/slow"),
+            "{}",
+            Instant::now() + Duration::from_secs(15),
+            Some(worker_signal),
+        )
+    });
+    received.recv_timeout(Duration::from_secs(3)).unwrap();
+    let start = Instant::now();
+    signal.cancel();
+    assert!(worker.join().unwrap().unwrap_err().contains("取消"));
+    assert_eq!(server.join().unwrap(), 0);
+    assert!(start.elapsed() < Duration::from_secs(3));
 }

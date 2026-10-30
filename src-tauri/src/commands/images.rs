@@ -1,7 +1,6 @@
 // Anime covers load directly; existing discovery requests retain their proxy route.
 // Return bytes so WKWebView can display a local blob without cross-origin image restrictions.
 /// 下载受支持来源的封面并返回图片字节；默认经后台代理，直连时补充来源对应的请求头。
-#[tauri::command]
 pub async fn fetch_cover(url: String, direct: Option<bool>) -> Result<Vec<u8>, String> {
     let target = reqwest::Url::parse(&url).map_err(|_| "封面地址无效".to_string())?;
     let host = target.host_str().unwrap_or_default();
@@ -43,7 +42,6 @@ pub async fn fetch_cover(url: String, direct: Option<bool>) -> Result<Vec<u8>, S
 }
 
 /// 从不含凭证的 HTTP(S) 地址下载图片，供前端创建本地图片资源。
-#[tauri::command]
 pub async fn fetch_image(url: String) -> Result<Vec<u8>, String> {
     let target = reqwest::Url::parse(&url).map_err(|_| "图片地址无效".to_string())?;
     if !matches!(target.scheme(), "http" | "https")

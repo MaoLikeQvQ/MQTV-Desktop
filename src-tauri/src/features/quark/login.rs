@@ -10,7 +10,7 @@ pub async fn quark_qr_create() -> Result<Value, String> {
 pub async fn quark_qr_cancel(id: String) {
     mqtv_netdisk::quark::login::quark_qr_cancel(id).await
 }
-/// 轮询扫码状态，通过应用钥匙串适配器安装成功授权。
+/// 轮询扫码状态，通过应用 SQLite 凭证适配器安装成功授权。
 #[tauri::command]
 pub async fn quark_qr_poll(id: String) -> Result<Value, String> {
     mqtv_netdisk::quark::login::quark_qr_poll(&Store, id).await

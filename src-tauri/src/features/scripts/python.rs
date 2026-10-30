@@ -43,6 +43,7 @@ fn bounded<R: Read>(mut input: R, limit: usize) -> Result<Vec<u8>, String> {
     }
 }
 /// 在独立进程执行一次请求，轮询取消与截止时间，失败不保留插件缓存。
+#[cfg(test)]
 pub(super) fn execute(
     runtime: &Path,
     resource: &Path,
@@ -52,6 +53,25 @@ pub(super) fn execute(
     storage: &mut Map<String, Value>,
     generation: u64,
 ) -> Result<Value, String> {
+    execute_scoped(
+        runtime, resource, bundle, action, args, storage, generation, None,
+    )
+}
+
+/// 使用本次窗口的取消信号终止 worker，不修改其他窗口的全局调用代际。
+pub(super) fn execute_scoped(
+    runtime: &Path,
+    resource: &Path,
+    bundle: &ScriptBundle,
+    action: &str,
+    args: &Value,
+    storage: &mut Map<String, Value>,
+    generation: u64,
+    signal: Option<crate::request_scope::Signal>,
+) -> Result<Value, String> {
+    if signal.as_ref().is_some_and(|signal| signal.is_cancelled()) {
+        return Err("Python 插件调用已取消".into());
+    }
     let worker = if cfg!(debug_assertions) {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../runtime/python/worker.py")
     } else {
@@ -117,7 +137,8 @@ pub(super) fn execute(
     let mut completed = 0;
     let mut status = None;
     loop {
-        if Instant::now() > deadline
+        if signal.as_ref().is_some_and(|signal| signal.is_cancelled())
+            || Instant::now() > deadline
             || GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation
         {
             let _ = child.kill();
@@ -167,6 +188,9 @@ pub(super) fn execute(
         serde_json::from_slice(&bytes).map_err(|_| "Python 插件响应不是有效 JSON")?;
     if let Some(error) = response["error"].as_str() {
         return Err(error.to_string());
+    }
+    if signal.as_ref().is_some_and(|signal| signal.is_cancelled()) {
+        return Err("Python 插件调用已取消".into());
     }
     *storage = response["storage"]
         .as_object()

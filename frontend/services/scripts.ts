@@ -1,4 +1,6 @@
 import { isQuarkShare, netdiskKind } from '@/domain/media/netdisk';
+import { prepareMediaPlayback } from '@/api/playback';
+import { isDesktop } from '@/platform/desktop';
 import { nativeAdapter } from '@/domain/resources/native-source';
 import { searchNativeSource, readNativeDetail, resolveNativePlayback } from '@/api/adapters';
 import type { Source } from '@/domain/media/media';
@@ -17,7 +19,7 @@ export async function searchSourceMedia(source: Source, keyword: string): Promis
 }
 /** 按来源协议请求详情，插件影片 ID 不作为 HTTP 地址解释。 */
 export const readSourceDetail = (source: Source, id: string) => nativeAdapter(source) ? readNativeDetail(source, id) : scriptLanguage(source) ? readScriptDetail(source, id) : readMediaDetail(source.api, id);
-/** 解析插件选集并校验媒体地址；拒绝将网盘分享页当作视频地址播放。 */
+/** 解析选集并校验媒体地址；普通桌面资源使用原生媒体代理，网盘分享交给独立文件流程。 */
 export async function resolveSourcePlayback(source: Source, flag: string, id: string, flags: string[]): Promise<string> {
   const value = nativeAdapter(source) ? (await resolveNativePlayback(source, id)).url : scriptLanguage(source) ? (await resolveScriptPlayback(source, flag, id, flags)).url : id;
   let url: URL;
@@ -25,5 +27,6 @@ export async function resolveSourcePlayback(source: Source, flag: string, id: st
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('插件返回了不支持的播放协议');
   if (isQuarkShare(value)) return value;
   if (netdiskKind(value)) throw new Error('该选集返回不支持的网盘分享页，目前仅支持夸克网盘');
+  if (!nativeAdapter(source) && !scriptLanguage(source) && isDesktop()) return prepareMediaPlayback(value);
   return value;
 }

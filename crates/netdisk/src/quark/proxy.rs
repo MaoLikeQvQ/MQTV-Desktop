@@ -1,16 +1,21 @@
 use super::client::{UA, client};
 use reqwest::{Client, Url};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 use tokio::sync::Mutex;
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 
 static TRANSFER: std::sync::Mutex<Option<(String, Arc<AtomicU64>)>> = std::sync::Mutex::new(None);
 
 /// 读取当前媒体会话累计收到的上游字节；地址不匹配时返回未知，避免切集后混入旧传输。
 pub fn downloaded_bytes(url: &str) -> Option<u64> {
     let transfer = TRANSFER.lock().ok()?;
-    transfer.as_ref().filter(|(current, _)| current == url).map(|(_, bytes)| bytes.load(Ordering::Relaxed))
+    transfer
+        .as_ref()
+        .filter(|(current, _)| current == url)
+        .map(|(_, bytes)| bytes.load(Ordering::Relaxed))
 }
-
 
 static PROXY_TASK: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>> =
     std::sync::Mutex::new(None);
@@ -21,7 +26,6 @@ static PROXY_TASK: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>> =
 /// 支持 Range 请求及 HLS 地址改写，仅向夸克域名发送 Cookie；替换旧监听任务，监听最多持续六小时。
 pub(super) async fn media_proxy(target: String, credential: String) -> Result<String, String> {
     use std::hash::{BuildHasher, Hasher};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let target = Url::parse(&target).map_err(|_| "视频地址无效")?;
     if target.scheme() != "https" || !target.username().is_empty() || target.password().is_some() {
         return Err("视频地址必须为 HTTPS".into());
@@ -70,7 +74,36 @@ pub(super) async fn media_proxy(target: String, credential: String) -> Result<St
     let targets = std::sync::Arc::new(Mutex::new(vec![target]));
     let downloaded = Arc::new(AtomicU64::new(0));
     let counter = downloaded.clone();
-    let task = tokio::spawn(async move {
+    let task = spawn_proxy(
+        listener,
+        address,
+        prefix,
+        targets,
+        credential,
+        root_is_playlist,
+        counter,
+    );
+    let mut previous = PROXY_TASK.lock().map_err(|_| "播放通道状态异常")?;
+    if let Some(previous) = previous.replace(task) {
+        previous.abort();
+    }
+    *TRANSFER.lock().map_err(|_| "播放流量状态异常")? = Some((output.clone(), downloaded));
+    Ok(output)
+}
+
+/// 接受的媒体连接归监听任务所有；父任务取消或超时退出时，一并取消全部下载连接。
+fn spawn_proxy(
+    listener: tokio::net::TcpListener,
+    address: std::net::SocketAddr,
+    prefix: String,
+    targets: Arc<Mutex<Vec<Url>>>,
+    credential: String,
+    root_is_playlist: bool,
+    counter: Arc<AtomicU64>,
+) -> tokio::task::JoinHandle<()> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    tokio::spawn(async move {
+        let mut connections = tokio::task::JoinSet::new();
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(6 * 3600);
         while let Ok(Ok((mut socket, _))) =
             tokio::time::timeout_at(deadline, listener.accept()).await
@@ -79,7 +112,8 @@ pub(super) async fn media_proxy(target: String, credential: String) -> Result<St
             let downloaded = counter.clone();
             let credential = credential.clone();
             let prefix = prefix.clone();
-            tokio::spawn(async move {
+            while connections.try_join_next().is_some() {}
+            connections.spawn(async move {
                 let mut request = Vec::new();
                 loop {
                     let mut buf = [0u8; 1024];
@@ -265,18 +299,14 @@ pub(super) async fn media_proxy(target: String, credential: String) -> Result<St
                 }
             });
         }
-    });
-    let mut previous = PROXY_TASK.lock().map_err(|_| "播放通道状态异常")?;
-    if let Some(previous) = previous.replace(task) {
-        previous.abort();
-    }
-    *TRANSFER.lock().map_err(|_| "播放流量状态异常")? = Some((output.clone(), downloaded));
-    Ok(output)
+    })
 }
 
-/// 停止媒体监听；不访问或修改账号数据。
+/// 停止媒体监听及其全部已接受连接，不访问或修改账号数据。
 pub(super) fn stop() {
-    if let Ok(mut transfer) = TRANSFER.lock() { *transfer = None; }
+    if let Ok(mut transfer) = TRANSFER.lock() {
+        *transfer = None;
+    }
     if let Ok(mut task) = PROXY_TASK.lock() {
         if let Some(task) = task.take() {
             task.abort();

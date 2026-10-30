@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invokePlayback } from '@/platform/playback-request';
 import { buildRequestUrl } from '@/utils/url';
 
 /**
@@ -13,8 +13,8 @@ export async function fetchImageBytes(address: string, direct = false): Promise<
     const url = buildRequestUrl(address), target = new URL(url), host = target.hostname;
     const cover = target.protocol === 'https:' && (host === 'doubanio.com' || host.endsWith('.doubanio.com') || host === 'lain.bgm.tv');
     return await (cover
-      ? invoke<number[]>('fetch_cover', { url, direct: direct || host === 'lain.bgm.tv' })
-      : invoke<number[]>('fetch_image', { url }));
+      ? invokePlayback<number[]>('fetch_cover', { url, direct: direct || host === 'lain.bgm.tv' })
+      : invokePlayback<number[]>('fetch_image', { url }));
   } catch (reason) {
     throw reason instanceof Error ? reason : new Error(String(reason));
   }

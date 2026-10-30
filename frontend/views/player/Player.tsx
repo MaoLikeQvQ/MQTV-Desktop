@@ -1,7 +1,7 @@
 import { OperationMessage } from '@/views/shared/components/OperationMessage';
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { readQuarkDownloadedBytes } from '@/api/quark';
+import { readMediaDownloadedBytes } from '@/api/playback';
 import { createDownloadRate, downloadRateText } from '@/domain/media/download-rate';
 import { isDesktop, readScreenFullscreen, setScreenFullscreen } from '@/platform/desktop';
 import type { PlaybackProgress } from '@/domain/history/history';
@@ -30,11 +30,14 @@ export type PlayerNavigation = {
   busy?: boolean;
   error?: string;
 };
-/** 管理原生视频或 HLS 播放，提供进度恢复、选集导航与自定义媒体控制。 */
-export function Player({ url, title, episode, navigation = {}, initialProgress, onProgress, playbackKey }: {
+/** 管理视频或 HLS 播放、进度恢复与媒体控制；通过回调协调侧栏和全屏选集。 */
+export function Player({ url, title, episode, navigation = {}, initialProgress, onProgress, playbackKey, onFullscreenChange, onPlaybackStarted }: {
+  onFullscreenChange?: (fullscreen: boolean) => void; onPlaybackStarted?: () => void;
   url: string; playbackKey?: string; title: string; episode: string; navigation?: PlayerNavigation;
   initialProgress?: PlaybackProgress; onProgress?: (progress: PlaybackProgress) => void;
 }) {
+  const startedCallback = useRef(onPlaybackStarted);
+  startedCallback.current = onPlaybackStarted;
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -65,7 +68,7 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
   async function toggle() {
     const video = ref.current; if (!video) return;
     if (video.paused) {
-      try { await video.play(); } catch { setError('无法开始播放，请重试或切换线路。'); }
+      try { await video.play(); setError(''); } catch { setError('无法开始播放，请重试或切换线路。'); }
     } else video.pause();
     reveal();
   }
@@ -81,8 +84,8 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
         if (!mounted.current) { if (next) await setScreenFullscreen(false); return; }
         ownsFullscreen.current = next;
         setScreenFullscreenState(next);
-      } else if (document.fullscreenElement === stage.current) await document.exitFullscreen();
-      else if (stage.current?.requestFullscreen) await stage.current.requestFullscreen();
+      } else if (document.fullscreenElement) await document.exitFullscreen();
+      else if (stage.current?.requestFullscreen) await (stage.current.closest('.watch-layout') ?? stage.current).requestFullscreen();
       else throw new Error('Fullscreen API unavailable');
     } catch { setError('无法切换屏幕全屏，请重试。'); }
     finally { fullscreenBusy.current = false; reveal(); }
@@ -98,7 +101,7 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
           setScreenFullscreenState(value);
           if (!value) ownsFullscreen.current = false;
         }).catch(() => { if (active) setError('无法读取屏幕全屏状态。'); });
-      } else setIsFullscreen(document.fullscreenElement === stage.current);
+      } else setIsFullscreen(!!stage.current && !!document.fullscreenElement?.contains(stage.current));
       reveal();
     };
     /** 按 Escape 退出由播放器开启的系统全屏，焦点位于控件时也生效。 */
@@ -121,6 +124,10 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
       }
     };
   }, []);
+  useEffect(() => {
+    onFullscreenChange?.(isFullscreen || screenFullscreen);
+  }, [isFullscreen, screenFullscreen, onFullscreenChange]);
+  useEffect(() => () => onFullscreenChange?.(false), [onFullscreenChange]);
   /** 按秒偏移跳转播放位置，并限制在视频时长范围内。 */
   function seek(offset: number) {
     const video = ref.current;
@@ -137,6 +144,7 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
     setError(''); setLoading(true); setPosition(0); setDuration(0); setBuffered(0); setPaused(true); setVisible(true);
     let disposed = false;
     let started = false;
+    let autoplayPending = true;
     let lastSaved = 0;
     let restored = false;
     /**
@@ -160,12 +168,30 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
     };
     /** 页面离开时强制上报当前播放进度。 */
     const onLeave = () => save(true);
+    /** 关窗保护等待落盘前暂停播放并采集最后进度，避免 pagehide 时才排队。 */
+    const onBeforeClose = () => { video.pause(); save(true); };
     /** 结束加载状态并提示用户切换线路或重新选择选集。 */
     const onError = () => { setLoading(false); setError('播放失败，可尝试切换线路或重新选择选集。'); };
     /** 视频可以播放时结束加载状态。 */
     const onReady = () => setLoading(false);
+    /** 当前选集准备好后自动播放一次；后续缓冲或拖动不改变用户的暂停选择。 */
+    const onCanPlay = () => {
+      if (disposed) return;
+      onReady();
+      if (!autoplayPending) return;
+      autoplayPending = false;
+      restore();
+      void video.play().catch((reason: unknown) => {
+        if (disposed) return;
+        if (reason instanceof DOMException && reason.name === 'NotAllowedError') {
+          setPaused(true);
+          setLoading(false);
+          // 浏览器预览可能要求用户手势，保留中央播放按钮供手动开始。
+        } else if (!(reason instanceof DOMException && reason.name === 'AbortError')) onError();
+      });
+    };
     /** 标记视频已经开始播放，保存进度并同步播放和控制栏状态。 */
-    const onPlaying = () => { started = true; save(true); setLoading(false); setPaused(false); reveal(); };
+    const onPlaying = () => { started = true; save(true); setLoading(false); setPaused(false); reveal(); startedCallback.current?.(); };
     /** 暂停时立即保存进度，并保持控制栏可见。 */
     const onPause = () => { save(true); setPaused(true); setVisible(true); };
     /** 视频缓冲等待时展示加载状态。 */
@@ -182,9 +208,10 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
     const onVolume = () => { setVolume(video.volume); setMuted(video.muted); };
     /** 同步播放倍速，并立即上报进度以保存当前速度。 */
     const onRate = () => { setRate(video.playbackRate); save(true); };
-    const events: [string, EventListener][] = [['loadedmetadata',restore],['durationchange',restore],['error',onError],['canplay',onReady],['playing',onPlaying],['pause',onPause],['ended',onPause],['waiting',onWaiting],['seeking',onWaiting],['seeked',onReady],['timeupdate',onTime],['durationchange',onTime],['progress',onTime],['volumechange',onVolume],['ratechange',onRate]];
+    const events: [string, EventListener][] = [['loadedmetadata',restore],['durationchange',restore],['error',onError],['canplay',onCanPlay],['playing',onPlaying],['pause',onPause],['ended',onPause],['waiting',onWaiting],['seeking',onWaiting],['seeked',onReady],['timeupdate',onTime],['durationchange',onTime],['progress',onTime],['volumechange',onVolume],['ratechange',onRate]];
     events.forEach(([name,listener]) => video.addEventListener(name,listener));
     window.addEventListener('pagehide', onLeave);
+    window.addEventListener('mqtv-before-close', onBeforeClose);
     let hls: Hls | undefined;
     let received = 0;
     const sample = createDownloadRate();
@@ -196,7 +223,7 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
       if (measuring) return;
       measuring = true;
       let bytes: number | null = null;
-      try { if (isDesktop()) bytes = await readQuarkDownloadedBytes(url); } catch { /* 流量不可读时显示未知，不影响播放。 */ }
+      try { if (isDesktop()) bytes = await readMediaDownloadedBytes(url); } catch { /* 流量不可读时显示未知，不影响播放。 */ }
       finally { measuring = false; }
       if (disposed) return;
       setDownloadRate(sample(bytes ?? (hls ? received : null), performance.now()));
@@ -209,14 +236,9 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
       } }); hls.on(Hls.Events.ERROR, (_event, data) => { if (data.fatal) onError(); });
       hls.loadSource(url); hls.attachMedia(video);
     } else video.src = url;
-    video.play().catch((reason: unknown) => {
-      if (disposed) return;
-      if (reason instanceof DOMException && reason.name === 'NotAllowedError') { setPaused(true); setLoading(false); }
-      else if (!(reason instanceof DOMException && reason.name === 'AbortError')) onError();
-    });
     void measureDownload();
     const downloadTimer = setInterval(() => void measureDownload(), 1000);
-    return () => { clearInterval(downloadTimer); save(true); window.removeEventListener('pagehide', onLeave); disposed = true; clearTimeout(timer.current); events.forEach(([name,listener]) => video.removeEventListener(name,listener)); hls?.destroy(); video.pause(); video.removeAttribute('src'); video.load(); };
+    return () => { clearInterval(downloadTimer); save(true); window.removeEventListener('pagehide', onLeave); window.removeEventListener('mqtv-before-close', onBeforeClose); disposed = true; clearTimeout(timer.current); events.forEach(([name,listener]) => video.removeEventListener(name,listener)); hls?.destroy(); video.pause(); video.removeAttribute('src'); video.load(); };
   }, [url, playbackKey]);
   return <>
     <div ref={stage} className={`player-stage controlled-player ${screenFullscreen ? 'player-screen-fullscreen' : ''} ${visible || paused || loading || error || navigation.error ? 'controls-visible' : ''}`} tabIndex={0} aria-label="影片播放器，空格播放暂停，左右键跳转，F 全屏，方括号切集" onMouseMove={reveal} onPointerLeave={reveal} onPointerDown={reveal} onKeyDown={event => {

@@ -16,6 +16,7 @@ mod live_tests {
     #[test]
     #[ignore = "requires local tvadmin and Quark; MQTV_TEST_PLAYBACK=1 saves one test video"]
     fn local_line_and_account_smoke() {
+        super::super::credentials::init_smoke();
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
             let metadata = quark_settings(Some("http://127.0.0.1:3101/".into())).await.expect("save native settings");
             assert_eq!(metadata["backend"], "http://127.0.0.1:3101/");
@@ -60,6 +61,7 @@ mod playback_smoke {
     #[test]
     #[ignore = "uses previously saved MQTV test file and real Quark network"]
     fn cached_video_resource() {
+        super::super::credentials::init_smoke();
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
             let s=load().unwrap(); let (key,_) = s.saved.first_key_value().expect("previously saved test file");
             let parts:Vec<_>=key.split(':').collect();
@@ -85,6 +87,7 @@ mod episode_smoke {
     #[test]
     #[ignore = "real Quark directory traversal; no transfers"]
     fn resolves_real_episodes() {
+        super::super::credentials::init_smoke();
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()

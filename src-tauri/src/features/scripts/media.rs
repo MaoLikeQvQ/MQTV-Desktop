@@ -2,14 +2,23 @@ use serde_json::Value;
 const UA: &str = "Mozilla/5.0 MQTV";
 /// 建立不跟随重定向的媒体客户端，避免跨站泄露插件请求头。
 fn client() -> Result<Client, String> {
-    Client::builder()
+    static CLIENT: std::sync::OnceLock<Result<Client, String>> = std::sync::OnceLock::new();
+    CLIENT.get_or_init(|| Client::builder()
         .timeout(std::time::Duration::from_secs(120))
         .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|_| "无法创建媒体请求".into())
+        .build().map_err(|_| "无法创建媒体请求".into())).clone()
 }
 use reqwest::{Client, Url};
 use tokio::sync::Mutex;
+use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+
+static TRANSFER: std::sync::Mutex<Option<(String, Arc<AtomicU64>)>> = std::sync::Mutex::new(None);
+
+/// 按完整回环地址读取当前会话的上游媒体字节，不计网页解析、探测和清单改写流量。
+pub(crate) fn downloaded_bytes(url: &str) -> Option<u64> {
+    TRANSFER.lock().ok()?.as_ref().filter(|(current, _)| current == url)
+        .map(|(_, bytes)| bytes.load(Ordering::Relaxed))
+}
 
 static PROXY_TASK: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>> =
     std::sync::Mutex::new(None);
@@ -23,6 +32,16 @@ pub(crate) fn invalidate_pending() {
 
 /// 启动随机回环媒体代理；仅转发已登记资源，保留 HLS 与 Range。
 pub(crate) async fn start(target: String, headers: Value) -> Result<String, String> {
+    start_with_probe(target, headers, None).await
+}
+
+/// 消费独立解析器已经读取的媒体响应，避免直链再次探测。
+pub(crate) async fn start_parsed(result: mqtv_parser::ParseResult) -> Result<String, String> {
+    let probe = result.take_probe();
+    start_with_probe(result.url, serde_json::to_value(result.headers).map_err(|_| "解析请求头无效")?, probe).await
+}
+
+async fn start_with_probe(target: String, headers: Value, probe: Option<mqtv_parser::MediaProbe>) -> Result<String, String> {
     let generation = START_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let headers = validated_headers(headers)?;
     use std::hash::{BuildHasher, Hasher};
@@ -34,26 +53,21 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
     {
         return Err("视频地址必须为 HTTP(S)".into());
     }
-    let probe = client()?
-        .get(target.clone())
-        .header("User-Agent", UA)
-        .headers(headers.clone())
-        .header("Range", "bytes=0-4095");
-    let mut probe = probe
-        .send()
-        .await
-        .map_err(|_| "视频连接失败，插件播放失败")?;
-    if !probe.status().is_success() {
-        return Err(format!(
-            "视频服务 HTTP {}，插件播放失败",
-            probe.status().as_u16()
-        ));
-    }
-    let prefix_bytes = probe
-        .chunk()
-        .await
-        .map_err(|_| "视频探测失败")?
-        .ok_or("视频响应为空")?;
+    let http = client()?;
+    let (mut probe, mut prefix_bytes) = if let Some(probe) = probe {
+        if probe.response.url() != &target { return Err("媒体探测地址不匹配".into()); }
+        (probe.response, probe.prefix)
+    } else {
+        let mut request = http.get(target.clone()).header("User-Agent", UA).headers(headers.clone());
+        // 清单完整读取并交接给首次播放器请求，二进制媒体只探测前缀。
+        if !target.path().ends_with(".m3u8") { request = request.header("Range", "bytes=0-4095"); }
+        let mut response = request.send().await.map_err(|_| "视频连接失败，插件播放失败")?;
+        if !response.status().is_success() {
+            return Err(format!("视频服务 HTTP {}，插件播放失败", response.status().as_u16()));
+        }
+        let prefix = response.chunk().await.map_err(|_| "视频探测失败")?.ok_or("视频响应为空")?.to_vec();
+        (response, prefix)
+    };
     let content_type = probe
         .headers()
         .get("content-type")
@@ -68,6 +82,20 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
         return Err("播放地址返回网页，当前未支持网页嗅探".into());
     }
     let root_is_playlist = prefix_bytes.starts_with(b"#EXTM3U") || content_type.contains("mpegurl");
+    if root_is_playlist && probe.status() == reqwest::StatusCode::OK {
+        if prefix_bytes.len() > 1024 * 1024 { return Err("视频清单过大".into()); }
+        while let Some(chunk) = probe.chunk().await.map_err(|_| "视频清单读取失败")? {
+            if prefix_bytes.len() + chunk.len() > 1024 * 1024 { return Err("视频清单过大".into()); }
+            prefix_bytes.extend_from_slice(&chunk);
+        }
+        if !String::from_utf8_lossy(&prefix_bytes).trim_start().starts_with("#EXTM3U") {
+            return Err("视频清单格式无效".into());
+        }
+    }
+    // 仅复用完整清单响应；206 前缀不可作为完整清单，二进制仍按播放器 Range 获取。
+    let initial = Arc::new(Mutex::new(if root_is_playlist && probe.status() == reqwest::StatusCode::OK {
+        Some((probe, prefix_bytes))
+    } else { None }));
     let token = format!(
         "{:016x}{:016x}",
         std::collections::hash_map::RandomState::new()
@@ -85,6 +113,8 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
     let extension = if root_is_playlist { "m3u8" } else { "mp4" };
     let output = format!("http://{address}{prefix}0/stream.{extension}");
     let targets = std::sync::Arc::new(Mutex::new(vec![target]));
+    let transferred = Arc::new(AtomicU64::new(0));
+    let session_bytes = transferred.clone();
     let task = tokio::spawn(async move {
         let mut connections = tokio::task::JoinSet::new();
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(6 * 3600);
@@ -92,6 +122,9 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
             tokio::time::timeout_at(deadline, listener.accept()).await
         {
             let targets = targets.clone();
+            let http = http.clone();
+            let initial = initial.clone();
+            let transferred = transferred.clone();
             let headers = headers.clone();
             let prefix = prefix.clone();
             while connections.try_join_next().is_some() {}
@@ -138,13 +171,6 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
                 let Some(target) = target else {
                     return;
                 };
-                let Ok(http) = Client::builder()
-                    .timeout(std::time::Duration::from_secs(120))
-                    .redirect(reqwest::redirect::Policy::none())
-                    .build()
-                else {
-                    return;
-                };
                 let mut request = if parts[0] == "HEAD" {
                     http.head(target.clone())
                 } else {
@@ -162,7 +188,12 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
                         }
                     }
                 }
-                let Ok(mut response) = request.send().await else {
+                let cached = if index == Some(0) && parts[0] == "GET" { initial.lock().await.take() } else { None };
+                let response = match cached {
+                    Some((response, prefix)) => Ok((response, prefix)),
+                    None => request.send().await.map(|response| (response, Vec::new())),
+                };
+                let Ok((mut response, first_bytes)) = response else {
                     let _ = socket.write_all(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
                     return;
                 };
@@ -180,8 +211,14 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
                         .and_then(|v| v.to_str().ok())
                         .is_some_and(|m| m.contains("mpegurl"));
                 if playlist && response.status().is_success() && parts[0] != "HEAD" {
-                    let mut bytes = Vec::new();
-                    while let Ok(Some(chunk)) = response.chunk().await {
+                    let mut bytes = first_bytes;
+                    if bytes.len() > 1024 * 1024 { return; }
+                    loop {
+                        let chunk = match response.chunk().await {
+                            Ok(Some(chunk)) => chunk,
+                            Ok(None) => break,
+                            Err(_) => return,
+                        };
                         if bytes.len() + chunk.len() > 1024 * 1024 {
                             return;
                         }
@@ -268,6 +305,9 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
                     return;
                 }
                 while let Ok(Some(chunk)) = response.chunk().await {
+                    if status.is_success() {
+                        transferred.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+                    }
                     if socket.write_all(&chunk).await.is_err() {
                         break;
                     }
@@ -283,6 +323,7 @@ pub(crate) async fn start(target: String, headers: Value) -> Result<String, Stri
     if let Some(previous) = previous.replace(task) {
         previous.abort();
     }
+    *TRANSFER.lock().map_err(|_| "播放流量状态异常")? = Some((output.clone(), session_bytes));
     Ok(output)
 }
 
@@ -325,6 +366,7 @@ pub(crate) fn stop() {
             task.abort();
         }
     }
+    if let Ok(mut transfer) = TRANSFER.lock() { *transfer = None; }
 }
 
 #[cfg(test)]
