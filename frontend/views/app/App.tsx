@@ -275,7 +275,7 @@ function App() {
       }
       const result = await readResourceFeed(applicationStorage, address, mode === 'default' && !forceRefresh);
       const next = result.feed;
-      await readQuarkSettings(address);
+      await readQuarkSettings();
       applicationStorage.setItem('mqtv-feed', JSON.stringify(next));
       applicationStorage.setItem('mqtv-feed-url', address);
       applicationStorage.setItem('mqtv-resource-mode', mode);

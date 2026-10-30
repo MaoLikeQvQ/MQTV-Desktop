@@ -1,5 +1,4 @@
 import { invokePlayback } from '@/platform/playback-request';
-import { buildRequestUrl } from '@/utils/url';
 
 export type QuarkAccount = { cached: boolean; accountId?: string; name?: string; local?: boolean };
 export type QuarkLoginSession = { id: string; scanUrl: string };
@@ -8,12 +7,8 @@ export type QuarkFile = { id: string; name: string; folder: boolean; size?: numb
 /** 读取分享的一页目录；分享访问令牌和文件转存令牌仅保留在原生层。 */
 export const readQuarkFiles = (share: string, passcode: string, parent: string, page: number) => invokePlayback<{ files: QuarkFile[]; total?: number; pageSize: number }>('quark_files', { share, passcode, parent, page });
 export type QuarkSearchItem = { title: string; url: string; poster?: string; remarks?: string; category?: string; year?: string };
-/**
- * 读取原生授权状态；提供资源地址时将其 origin 同步为授权后台。
- * @param resourceUrl 可选资源接口地址，不传时只读取状态。
- */
-export const readQuarkSettings = (resourceUrl?: string) => invokePlayback<QuarkAccount>('quark_settings', resourceUrl
-  ? { backend: new URL(buildRequestUrl(resourceUrl)).origin + '/' } : undefined);
+/** 读取原生授权状态，授权后台统一使用构建环境的 VITE_API_BASE_URL。 */
+export const readQuarkSettings = () => invokePlayback<QuarkAccount>('quark_settings');
 /** 请求创建夸克扫码会话，返回会话 ID 和用于生成二维码的链接。 */
 export const createQuarkLogin = () => invokePlayback<QuarkLoginSession>('quark_qr_create');
 /** 查询指定扫码会话状态，登录凭证由原生层处理且不返回前端。 */

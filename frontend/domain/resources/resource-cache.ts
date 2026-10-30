@@ -1,9 +1,9 @@
 import { parseFeed, type Feed } from '@/domain/media/media';
 import { DEFAULT_RESOURCE_URL } from '@/config/services';
 export { DEFAULT_RESOURCE_URL } from '@/config/services';
-/** 将缺失地址或历史默认地址迁移为当前环境的默认资源地址，保留自定义地址。 */
+/** 将缺失地址或历史回环默认地址迁移为当前环境的默认资源地址，其他已保存地址保持原值。 */
 export function resolveResourceUrl(saved: string | null): string {
-  return !saved || ['http://127.0.0.1:3101/api/resources', 'http://localhost:3101/api/resources', 'http://tvadmin.maolike.cn/api/resources'].includes(saved) ? DEFAULT_RESOURCE_URL : saved;
+  return !saved || ['http://127.0.0.1:3101/api/resources', 'http://localhost:3101/api/resources'].includes(saved) ? DEFAULT_RESOURCE_URL : saved;
 }
 export const RESOURCE_TTL = 7 * 24 * 60 * 60 * 1000;
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem'>;

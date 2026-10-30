@@ -39,7 +39,11 @@ fn rejects_non_quark_shares_and_insecure_backends() {
     assert!(share_id("https://evil.test/s/123").is_err());
     assert!(backend_url("http://remote.test").is_err());
     assert!(backend_url(crate::config::backend_url().unwrap().as_str()).is_ok());
-    assert!(backend_url("http://tvadmin.maolike.cn.evil.test/").is_err());
+    let mut lookalike = crate::config::backend_url().unwrap();
+    let host = format!("{}.evil.test", lookalike.host_str().unwrap());
+    lookalike.set_host(Some(&host)).unwrap();
+    lookalike.set_scheme("http").unwrap();
+    assert!(backend_url(lookalike.as_str()).is_err());
     assert!(backend_url("http://127.0.0.1:3101").is_ok());
     assert_eq!(share_id("https://pan.quark.cn/s/abc123").unwrap(), "abc123");
 }

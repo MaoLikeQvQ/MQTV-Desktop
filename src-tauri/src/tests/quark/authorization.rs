@@ -14,3 +14,12 @@ fn invalid_input_is_rejected_before_accessing_local_credentials() {
         assert!(quark_authorize_code("x".repeat(129)).await.is_err());
     });
 }
+
+/// 旧命令参数不能覆盖环境配置，且拒绝操作无需访问本地凭证。
+#[test]
+fn rejects_backend_override() {
+    tauri::async_runtime::block_on(async {
+        let error = quark_settings(Some("https://override.invalid/".into())).await.unwrap_err();
+        assert!(error.contains("VITE_API_BASE_URL"));
+    });
+}

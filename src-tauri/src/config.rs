@@ -2,7 +2,7 @@ use reqwest::Url;
 
 /// 读取编译时注入的后台地址，仅接受不含路径、参数和凭证的 HTTP(S) 域名。
 pub(crate) fn backend_url() -> Result<Url, String> {
-    let url = Url::parse(env!("MQTV_API_BASE_URL")).map_err(|_| "VITE_API_BASE_URL 地址无效")?;
+    let url = Url::parse(env!("VITE_API_BASE_URL")).map_err(|_| "VITE_API_BASE_URL 地址无效")?;
     if !matches!(url.scheme(), "http" | "https")
         || url.host_str().is_none()
         || !url.username().is_empty()

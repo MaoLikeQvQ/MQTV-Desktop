@@ -1,5 +1,5 @@
 use super::{
-    client::{UA, backend_url, client, cookie},
+    client::{UA, client, cookie},
     credentials::{LOCK, Settings, load, save},
 };
 use serde_json::{Value, json};
@@ -8,18 +8,17 @@ use serde_json::{Value, json};
 fn metadata(s: &Settings) -> Value {
     json!({"backend":s.backend,"cached":s.lease.is_some(),"accountId":s.lease.as_ref().and_then(|l|l.get("accountId")),"verifiedAt":s.lease.as_ref().and_then(|l|l.get("verifiedAt")),"name":s.lease.as_ref().and_then(|l|l.get("name")),"local":s.lease.as_ref().is_some_and(|l|l["source"] == "local")})
 }
-/// 读取或更新后台设置；切换后台时清除缓存的后台授权，保留本地扫码授权。
+/// 读取环境配置后台的授权状态；保留旧命令参数，但拒绝覆盖环境配置。
 #[tauri::command]
 pub async fn quark_settings(backend: Option<String>) -> Result<Value, String> {
-    let _guard = LOCK.lock().await;
-    let mut s = load()?;
+    let configured = crate::config::backend_url()?;
     if let Some(backend) = backend {
-        let url = backend_url(&backend)?;
-        if s.backend != url.as_str() && !s.lease.as_ref().is_some_and(|l| l["source"] == "local") {
-            s.lease = None;
+        if reqwest::Url::parse(&backend).map_err(|_| "后台地址无效")? != configured {
+            return Err("授权后台由 VITE_API_BASE_URL 统一配置，不能单独修改".into());
         }
-        s.backend = url.to_string();
     }
+    let _guard = LOCK.lock().await;
+    let s = load()?;
     save(&s)?;
     Ok(metadata(&s))
 }
@@ -34,9 +33,7 @@ pub(super) async fn lease(s: &mut Settings, excluded: &[String]) -> Result<Value
         .as_deref()
         .filter(|c| !c.is_empty())
         .ok_or("请在授权管理中输入内测授权码，或使用扫码授权")?;
-    let url = backend_url(&s.backend)?
-        .join("/api/authorizations/quark")
-        .map_err(|_| "后台地址无效")?;
+    let url = crate::config::backend_endpoint("/api/authorizations/quark")?;
     let r = client()?
         .post(url)
         .json(&json!({"authorizationCode":code,"excludeAccountIds":excluded}))

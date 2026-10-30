@@ -8,7 +8,7 @@ function storage() {
 describe('default resource refresh', () => {
   it('migrates the local default while preserving custom addresses', () => {
     expect(resolveResourceUrl(null)).toBe(DEFAULT_RESOURCE_URL);
-    expect(resolveResourceUrl('http://tvadmin.maolike.cn/api/resources')).toBe(DEFAULT_RESOURCE_URL);
+    expect(resolveResourceUrl(DEFAULT_RESOURCE_URL)).toBe(DEFAULT_RESOURCE_URL);
     expect(resolveResourceUrl('http://127.0.0.1:3101/api/resources')).toBe(DEFAULT_RESOURCE_URL);
     expect(resolveResourceUrl('http://localhost:3101/api/resources')).toBe(DEFAULT_RESOURCE_URL);
     expect(resolveResourceUrl('https://custom.example/api/resources')).toBe('https://custom.example/api/resources');

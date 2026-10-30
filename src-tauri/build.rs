@@ -42,7 +42,7 @@ fn main() {
         !backend.contains(['\r', '\n']),
         "VITE_API_BASE_URL 必须为单行域名"
     );
-    println!("cargo:rustc-env=MQTV_API_BASE_URL={}", backend.trim());
+    println!("cargo:rustc-env=VITE_API_BASE_URL={}", backend.trim());
     // 发布包必须携带当前目标的校验运行时，禁止依赖开发机 PATH。
     let runtime = root.join("src-tauri/runtime/python");
     let marker = runtime.join("mqtv-runtime.json");

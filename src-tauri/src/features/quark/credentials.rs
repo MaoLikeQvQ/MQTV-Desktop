@@ -54,13 +54,13 @@ pub(super) fn init_smoke() {
     crate::storage::init_smoke();
 }
 
+/// 后台统一使用构建环境配置；切换环境时清除后台租约，保留本地扫码账号及其他字段。
 fn normalize(mut settings: Settings) -> Result<Settings, String> {
-    if matches!(
-        settings.backend.as_str(),
-        "http://127.0.0.1:3101/" | "http://localhost:3101/" | "http://tvadmin.maolike.cn/"
-    ) {
-        settings.backend = crate::config::backend_url()?.to_string();
+    let backend = crate::config::backend_url()?.to_string();
+    if settings.backend != backend && !settings.lease.as_ref().is_some_and(|l| l["source"] == "local") {
+        settings.lease = None;
     }
+    settings.backend = backend;
     Ok(settings)
 }
 
