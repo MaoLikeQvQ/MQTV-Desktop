@@ -309,7 +309,7 @@ function App() {
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', check); };
   }, [resourceMode, url]);
 
-  /** 调度多来源搜索并增量展示结果，同时更新允许评分来源的耗时与相关度统计。 */
+  /** 搜索优先调度已适配的网盘来源，同类按质量评分排序；并发增量展示结果并记录允许评分来源的统计。 */
   async function search(term = query) {
     term = normalizeSearchKeyword(term);
     if (!term || busy || searchLock.current) return;
@@ -326,7 +326,10 @@ function App() {
     try {
       const identities = await Promise.all(feed.sites.filter(canSearch).map(async source => ({ source, id: canScoreSource(resourceMode, url, source) ? await scoreIdentity(url, source) : null })));
       setScoreIds(Object.fromEntries(identities.flatMap(item => item.id ? [[item.source.key, item.id]] : [])));
-      identities.sort((a, b) => (b.id ? priority(scores[b.id]) : priority()) - (a.id ? priority(scores[a.id]) : priority()));
+      identities.sort((a, b) => {
+        const cloudPriority = Number(quarkLine(b.source).sites.length > 0) - Number(quarkLine(a.source).sites.length > 0);
+        return cloudPriority || (b.id ? priority(scores[b.id]) : priority()) - (a.id ? priority(scores[a.id]) : priority());
+      });
       let parallelism: number;
       try { parallelism = await readSearchParallelism(); }
       catch {
@@ -385,6 +388,7 @@ function App() {
    * @param resume 可选历史记录，用于匹配上次观看选集。
    */
   async function open(vod: Vod, group = selectedGroup, resume?: PlaybackRecord, resource = resourceIdentity) {
+    setSearchEntry(!resume);
     if (desktop && !playerWindow) {
       try {
         await desktopStorage.flush();
@@ -438,6 +442,7 @@ function App() {
     } finally { if (request === detailRequest.current) setDetailLoading(false); }
   }
 
+  const [searchEntry, setSearchEntry] = useState(true);
   const selectionRequest = useRef(0);
   const receivePlayer = useRef<(selection: PlayerSelection) => void>(() => {});
   receivePlayer.current = selection => {
@@ -452,6 +457,7 @@ function App() {
       const records = readHistory({ getItem: key => snapshot[key] ?? null });
       const resume = records.find(record => record.id === (selection.resume?.id ?? historyIdentity(selection.resource, selection.vod)));
       void open(selection.vod, selection.group, resume, selection.resource);
+      setSearchEntry(!selection.resume);
     }).catch(error => setMessage({ text: '切换影片前保存播放进度失败：' + String(error), error: true }));
   };
   useEffect(() => {
@@ -521,7 +527,7 @@ function App() {
             <div className="watch-selection">
             <details key={historyIdentity('', selected)} className="watch-disclosure watch-sources"><summary><span>播放来源</span><span className="watch-current-source" title={selected.source.name}>{sourceShortName(selected.source.name)}</span></summary>
             <div className="line-switcher">{orderWatchSources(selectedGroup?.items ?? [selected]).map((item, index) => <Button disabled={detailLoading || playLoading} key={JSON.stringify([item.source.key, item.vod_id])} size="small" variant={historyIdentity('', item) === historyIdentity('', selected) ? 'contained' : 'outlined'} aria-pressed={historyIdentity('', item) === historyIdentity('', selected)} startIcon={quarkLine(item.source).sites.length > 0 ? <CloudIcon titleAccess="网盘资源" /> : undefined} title={[item.source.name, scoreLabel(item.source) ? '搜索评分：' + scoreLabel(item.source) : ''].filter(Boolean).join('\n')} onClick={() => void open(item)}>{sourceShortName(item.source.name)}{(selectedGroup?.items.filter(v => v.source.key === item.source.key).length ?? 0) > 1 ? ' · ' + (index + 1) : ''}</Button>)}</div></details>
-          {(quarkLine(selected.source).sites.length > 0 || scriptShare) && <QuarkFiles key={JSON.stringify([selected.source.key, selected.vod_id, scriptShare])} detailUrl={scriptShare || String(selected.vod_id)} directShare={!!scriptShare} onSynopsis={setSynopsis} onNavigation={setCloudNavigation} resume={resumeRecord?.target} onPlay={(url, name, size, target) => { setCloudTarget(scriptShare && playingEpisode && playingLine ? { ...target, script: { id: playingEpisode.url, flag: playingLine.name } } : target); setPlaying({url, name, size}); }} />}
+          {(quarkLine(selected.source).sites.length > 0 || scriptShare) && <QuarkFiles key={JSON.stringify([selected.source.key, selected.vod_id, scriptShare])} detailUrl={scriptShare || String(selected.vod_id)} searchEntry={searchEntry} directShare={!!scriptShare} onSynopsis={setSynopsis} onNavigation={setCloudNavigation} resume={resumeRecord?.target} onPlay={(url, name, size, target) => { setCloudTarget(scriptShare && playingEpisode && playingLine ? { ...target, script: { id: playingEpisode.url, flag: playingLine.name } } : target); setPlaying({url, name, size}); }} />}
           {!quarkLine(selected.source).sites.length && <>
             <h2>播放线路</h2>
             {!detailLoading && !lines.length && <p className="episode-hint">暂无可播放选集</p>}

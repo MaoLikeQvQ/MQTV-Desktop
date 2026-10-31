@@ -51,7 +51,7 @@ it('does not rewrite unchanged background results and replaces only completed ch
   scanQuarkEpisodes.mockImplementation(async (_share, _signal, emit) => { emit(episode); emit(added); });
   expect(await cache.refreshQuarkEpisodes(share, new AbortController().signal)).toEqual([episode, added]);
   expect(cache.readQuarkEpisodeCache(share)).toEqual([episode, added]);
-  expect(write).toHaveBeenCalledTimes(1);
+  expect(write.mock.calls.filter(([key]) => !String(key).includes("-time"))).toHaveLength(1);
 });
 it('retains the old complete directory on background failure or cancellation', async () => {
   const cache = await import('@/services/quark-playback-cache');
@@ -76,20 +76,37 @@ it('does not rewrite unchanged detail and ignores detail arriving after cancella
   await cache.loadQuarkInfo('film', true, controller.signal);
   expect(cache.readQuarkInfoCache('film')?.synopsis).toBe('old');
 });
-it('fills missing episodes and updates metadata without removing or reordering cached episodes', async () => {
+it('fills missing episodes and updates metadata while removing unavailable cached episodes', async () => {
   const cache = await import('@/services/quark-playback-cache');
   const retained = { ...episode, id: 'retained', name: '02.mp4' };
   cache.saveQuarkEpisodeCache(share, [episode, retained]);
   const updated = { ...episode, name: '01 4K.mp4' };
   const added = { ...episode, id: 'new', name: '03.mp4' };
   scanQuarkEpisodes.mockImplementation(async (_share, _signal, emit) => { emit(added); emit(updated); });
-  expect(await cache.refreshQuarkEpisodes(share, new AbortController().signal)).toEqual([updated, retained, added]);
-  expect(cache.readQuarkEpisodeCache(share)).toEqual([updated, retained, added]);
+  expect(await cache.refreshQuarkEpisodes(share, new AbortController().signal)).toEqual([updated, added]);
+  expect(cache.readQuarkEpisodeCache(share)).toEqual([updated, added]);
 });
-it('supplements cached share lines without dropping existing lines or replacing synopsis with an empty response', async () => {
+it('replaces outdated cached share lines or replacing synopsis with an empty response', async () => {
   const cache = await import('@/services/quark-playback-cache');
   readQuarkInfo.mockResolvedValue({ shares: [share], synopsis: '已有简介' });
   await cache.loadQuarkInfo('film');
   readQuarkInfo.mockResolvedValue({ shares: [share + 'new'], synopsis: '' });
-  expect(await cache.loadQuarkInfo('film', true)).toEqual({ shares: [share, share + 'new'], synopsis: '已有简介' });
+  expect(await cache.loadQuarkInfo('film', true)).toEqual({ shares: [share + 'new'], synopsis: '已有简介' });
+});
+
+it('expires search entry caches after ten minutes while retaining history caches', async () => {
+  const cache = await import('@/services/quark-playback-cache');
+  readQuarkInfo.mockResolvedValue({ shares: [share], synopsis: 'fresh' });
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1000000);
+  try {
+    await cache.loadQuarkInfo('timed-film');
+    cache.saveQuarkEpisodeCache(share, [episode]);
+    clock.mockReturnValue(1599999);
+    expect(cache.readQuarkInfoCache('timed-film', true)).not.toBeNull();
+    expect(cache.readQuarkEpisodeCache(share, true)).toEqual([episode]);
+    clock.mockReturnValue(1600000);
+    expect(cache.readQuarkInfoCache('timed-film', true)).toBeNull();
+    expect(cache.readQuarkEpisodeCache(share, true)).toBeNull();
+    expect(cache.readQuarkEpisodeCache(share)).toEqual([episode]);
+  } finally { clock.mockRestore(); }
 });

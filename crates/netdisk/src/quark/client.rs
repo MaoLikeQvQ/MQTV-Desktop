@@ -77,10 +77,11 @@ pub fn decode_api_response(status: u16, path: &str, data: Option<Value>) -> Resu
         return Err("AUTH_INVALID".into());
     }
     if path.starts_with("share/") {
-        let code = data.as_ref().and_then(|value| value["code"].as_i64());
+        let code = data.as_ref().and_then(|value| value["code"].as_i64().or_else(|| value["code"].as_str().and_then(|code| code.parse().ok())));
         let reason = match code {
             Some(41004) => Some("分享中的文件已删除或不存在"),
             Some(41006) => Some("分享不存在或已失效"),
+            _ if status == 404 => Some("分享地址无法访问（HTTP 404）"),
             _ => None,
         };
         if let Some(reason) = reason {
