@@ -127,7 +127,7 @@ pub async fn quark_line_info(url: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({"shares": parse_shares(&html)?, "synopsis": parse_synopsis(&html)}))
 }
 /// 从站点正文区域提取纯文本简介，排除脚本和页面其他区域。
-fn parse_synopsis(html: &str) -> String {
+pub(crate) fn parse_synopsis(html: &str) -> String {
     let doc = Html::parse_document(html);
     for selector in [
         ".vod_content",
@@ -152,7 +152,7 @@ fn parse_synopsis(html: &str) -> String {
     String::new()
 }
 /// 请求有大小和状态限制的影片详情 HTML。
-async fn line_detail_html(url: &str) -> Result<String, String> {
+pub(crate) async fn line_detail_html(url: &str) -> Result<String, String> {
     let base = backend_url(url)?;
     let r = client()?
         .get(base)

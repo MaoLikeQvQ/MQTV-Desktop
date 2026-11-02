@@ -1,4 +1,4 @@
-import { isQuarkShare, netdiskKind } from '@/domain/media/netdisk';
+import { isNetdiskShare, netdiskKind } from '@/domain/media/netdisk';
 import { prepareMediaPlayback } from '@/api/playback';
 import { isDesktop } from '@/platform/desktop';
 import { nativeAdapter } from '@/domain/resources/native-source';
@@ -25,8 +25,8 @@ export async function resolveSourcePlayback(source: Source, flag: string, id: st
   let url: URL;
   try { url = new URL(value); } catch { throw new Error('插件未返回有效的媒体地址'); }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('插件返回了不支持的播放协议');
-  if (isQuarkShare(value)) return value;
-  if (netdiskKind(value)) throw new Error('该选集返回不支持的网盘分享页，目前仅支持夸克网盘');
+  if (isNetdiskShare(value)) return value;
+  if (netdiskKind(value)) throw new Error('该选集返回不支持的网盘分享页，目前支持夸克和 UC 网盘');
   if (!nativeAdapter(source) && !scriptLanguage(source) && isDesktop()) return prepareMediaPlayback(value);
   return value;
 }

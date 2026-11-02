@@ -12,3 +12,11 @@ fn endpoints_use_the_configured_backend() {
         );
     }
 }
+
+/// UC 授权与资源配置保持同源，路径独立于夸克。
+#[test]
+fn uc_authorization_uses_configured_origin() {
+    let endpoint = super::uc_authorization_endpoint().unwrap();
+    assert_eq!(endpoint.origin(), super::backend_url().unwrap().origin());
+    assert_eq!(endpoint.path(), "/api/authorizations/uc");
+}

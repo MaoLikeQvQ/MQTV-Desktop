@@ -1,4 +1,5 @@
 import type { TitleGroup, Vod } from '@/domain/search/search';
+import { isUcShare } from '@/domain/media/netdisk';
 import type { QuarkEpisode } from '@/api/quark';
 import { scriptLanguage } from '@/domain/resources/script-source';
 import { quarkLine } from '@/domain/resources/quark-lines';
@@ -13,6 +14,7 @@ export type PlaybackTarget = {
   url?: string;
   script?: { id: string; flag: string };
   quark?: { share: string; file: QuarkEpisode };
+  uc?: { share: string; file: QuarkEpisode };
 };
 export type PlaybackRecord = PlaybackProgress & {
   id: string;
@@ -40,7 +42,10 @@ function valid(value: unknown): value is PlaybackRecord {
     && typeof s.name === 'string' && typeof s.api === 'string' && validHistoryGroup(r.group) && !!t && typeof t.line === 'string'
     && typeof t.episode === 'string' && Number.isInteger(t.episodeIndex) && t.episodeIndex >= 0
     && Number.isInteger(t.episodeCount) && t.episodeCount > t.episodeIndex
-    && (t.quark ? typeof t.quark.share === 'string' && typeof t.quark.file?.id === 'string' && typeof t.quark.file?.name === 'string'
+    && !(t.uc && t.quark)
+    && (t.uc ? isUcShare(t.uc.share) && typeof t.uc.file?.id === 'string' && typeof t.uc.file?.name === 'string'
+      && typeof t.uc.file.parent === 'string' && Number.isInteger(t.uc.file.page) && t.uc.file.page > 0
+      : t.quark ? typeof t.quark.share === 'string' && typeof t.quark.file?.id === 'string' && typeof t.quark.file?.name === 'string'
       : t.script ? !!(scriptLanguage(s) || nativeAdapter(s)) && typeof t.script.id === 'string' && !!t.script.id && typeof t.script.flag === 'string'
         : typeof t.url === 'string' && /^https?:\/\//i.test(t.url))
     && nonnegative(r.position) && nonnegative(r.duration) && nonnegative(r.updatedAt)
@@ -105,6 +110,8 @@ export function findHistoryEpisode(lines: import('@/domain/media/media').Line[],
 }
 /** 按稳定选集身份判断是否恢复上次进度，脚本同名选集不能仅凭显示名称匹配。 */
 export function samePlaybackTarget(current: PlaybackTarget, previous: PlaybackTarget): boolean {
+  if (current.uc || previous.uc) return !!current.uc && !!previous.uc
+    && current.uc.share === previous.uc.share && current.uc.file.id === previous.uc.file.id;
   if (current.quark || previous.quark) return !!current.quark && !!previous.quark
     && current.quark.share === previous.quark.share && current.quark.file.id === previous.quark.file.id;
   if (current.script || previous.script) return !!current.script && !!previous.script

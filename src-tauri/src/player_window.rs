@@ -57,6 +57,7 @@ pub(crate) async fn player_window_open(
         crate::request_scope::start(request.revision)?;
         crate::features::scripts::media::stop();
         mqtv_netdisk::quark::shutdown();
+        mqtv_netdisk::uc::shutdown();
         let existing = handle.get_webview_window("player");
         if existing.is_none() {
             state.ready = false;
@@ -108,6 +109,7 @@ pub(crate) fn stop_requests() {
     crate::request_scope::cancel();
     crate::features::scripts::media::stop();
     mqtv_netdisk::quark::shutdown();
+    mqtv_netdisk::uc::shutdown();
 }
 
 pub(crate) fn destroyed() {
@@ -118,4 +120,5 @@ pub(crate) fn destroyed() {
     }
     crate::features::scripts::media::stop();
     mqtv_netdisk::quark::shutdown();
+    mqtv_netdisk::uc::shutdown();
 }

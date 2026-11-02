@@ -5,7 +5,7 @@ mod player_window;
 mod request_scope;
 mod storage;
 
-use features::quark;
+use features::{quark, uc};
 use tauri::{Emitter, Manager};
 
 /// 初始化插件、注册前端可调用的原生命令，并启动 Tauri 应用。
@@ -65,7 +65,21 @@ pub fn run() {
             commands::player_requests::quark_files,
             commands::player_requests::quark_play,
             quark::playback::quark_downloaded_bytes,
-            commands::player_requests::quark_episodes
+            commands::player_requests::quark_episodes,
+            uc::login::uc_qr_create,
+            uc::login::uc_qr_poll,
+            uc::login::uc_qr_cancel,
+            uc::authorization::uc_settings,
+            uc::authorization::uc_authorize,
+            uc::authorization::uc_authorize_code,
+            uc::authorization::uc_validate,
+            commands::player_requests::uc_line_detail,
+            commands::player_requests::uc_line_info,
+            commands::player_requests::netdisk_line_info,
+            commands::player_requests::uc_files,
+            commands::player_requests::uc_play,
+            commands::player_requests::uc_episodes,
+            uc::playback::uc_downloaded_bytes
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -99,6 +113,7 @@ pub fn run() {
             tauri::RunEvent::Exit => {
                 features::scripts::shutdown();
                 mqtv_netdisk::quark::shutdown();
+                mqtv_netdisk::uc::shutdown();
             }
             _ => {}
         });

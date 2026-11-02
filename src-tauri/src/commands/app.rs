@@ -1,5 +1,5 @@
-// Increment for each desktop release; tvadmin compares this with versionCode.
-const APP_BUILD: u32 = 100;
+// 每次桌面发布递增；与 GitHub Release 更新清单中的 versionCode 保持一致。
+const APP_BUILD: u32 = 101;
 
 /// 读取应用版本、构建号、平台、架构和系统版本，供前端匹配更新包；不支持的平台或架构返回错误。
 #[tauri::command]

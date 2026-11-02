@@ -11,7 +11,7 @@ import { EpisodeButton } from '@/views/player/components/EpisodeButton';
 import { CachedImage } from '@/views/shared/components/CachedImage';
 import { Synopsis } from '@/views/player/components/Synopsis';
 import { initialWatchSource, orderWatchSources, synopsisText, withPlaybackPoster } from '@/domain/media/watch';
-import { playableLines } from '@/domain/media/netdisk';
+import { isNetdiskShare, playableLines } from '@/domain/media/netdisk';
 import { nativeAdapter } from '@/domain/resources/native-source';
 import { canSearchCustomSource as isSearchable, type ValidatedResource } from '@/domain/resources/custom-feed';
 import { RecentPlayback } from '@/views/history/RecentPlayback';
@@ -26,6 +26,7 @@ import { searchSourceMedia, readSourceDetail, resolveSourcePlayback } from '@/se
 import { readScriptStatus } from '@/api/scripts';
 import { scriptLanguage, scriptSourceIdentity, canSearchScriptSource } from '@/domain/resources/script-source';
 import { readQuarkSettings } from '@/api/quark';
+import { readUcSettings } from '@/api/uc';
 import { channels, useNavigation, type Channel, type Page } from '@/router';
 import { Alert, Button, CircularProgress, Tooltip, Tabs, Tab } from '@mui/material';
 import SearchIcon from '@mui/icons-material/SearchRounded';
@@ -39,8 +40,8 @@ import VideoIcon from '@mui/icons-material/OndemandVideoRounded';
 import { ResourceSettings } from '@/views/settings/ResourceSettings';
 import { BasicSettings } from '@/views/settings/BasicSettings';
 import { readCustomResources, saveCustomResources, type CustomResource } from '@/domain/resources/custom-resources';
-import { QuarkSettings } from '@/views/settings/AuthorizationSettings';
-import { QuarkFiles } from '@/views/player/components/QuarkFiles';
+import { NetdiskSettings } from '@/views/settings/AuthorizationSettings';
+import { NetdiskFiles } from '@/views/player/components/QuarkFiles';
 import { searchQuarkSource } from '@/services/quark-lines';
 import { quarkLine } from '@/domain/resources/quark-lines';
 import { Discovery } from '@/views/discovery/Discovery';
@@ -234,8 +235,7 @@ function App() {
       const mediaUrl = await resolveSourcePlayback(source, line.name, episode.url, flags);
       if (request !== playRequest.current || detail !== detailRequest.current) return;
       setPlayingEpisode(episode);
-      const resolved = new URL(mediaUrl);
-      if (resolved.protocol === 'https:' && resolved.hostname === 'pan.quark.cn' && resolved.pathname.startsWith('/s/')) {
+      if (isNetdiskShare(mediaUrl)) {
         setPlaying(null); setScriptShare(mediaUrl); setCloudTarget(undefined);
       } else {
         setScriptShare(null); setCloudTarget(undefined); setPlaying({ name: episode.name, url: mediaUrl });
@@ -275,7 +275,7 @@ function App() {
       }
       const result = await readResourceFeed(applicationStorage, address, mode === 'default' && !forceRefresh);
       const next = result.feed;
-      await readQuarkSettings();
+      await Promise.all([readQuarkSettings(), readUcSettings()]);
       applicationStorage.setItem('mqtv-feed', JSON.stringify(next));
       applicationStorage.setItem('mqtv-feed-url', address);
       applicationStorage.setItem('mqtv-resource-mode', mode);
@@ -527,7 +527,7 @@ function App() {
             <div className="watch-selection">
             <details key={historyIdentity('', selected)} className="watch-disclosure watch-sources"><summary><span>播放来源</span><span className="watch-current-source" title={selected.source.name}>{sourceShortName(selected.source.name)}</span></summary>
             <div className="line-switcher">{orderWatchSources(selectedGroup?.items ?? [selected]).map((item, index) => <Button disabled={detailLoading || playLoading} key={JSON.stringify([item.source.key, item.vod_id])} size="small" variant={historyIdentity('', item) === historyIdentity('', selected) ? 'contained' : 'outlined'} aria-pressed={historyIdentity('', item) === historyIdentity('', selected)} startIcon={quarkLine(item.source).sites.length > 0 ? <CloudIcon titleAccess="网盘资源" /> : undefined} title={[item.source.name, scoreLabel(item.source) ? '搜索评分：' + scoreLabel(item.source) : ''].filter(Boolean).join('\n')} onClick={() => void open(item)}>{sourceShortName(item.source.name)}{(selectedGroup?.items.filter(v => v.source.key === item.source.key).length ?? 0) > 1 ? ' · ' + (index + 1) : ''}</Button>)}</div></details>
-          {(quarkLine(selected.source).sites.length > 0 || scriptShare) && <QuarkFiles key={JSON.stringify([selected.source.key, selected.vod_id, scriptShare])} detailUrl={scriptShare || String(selected.vod_id)} searchEntry={searchEntry} directShare={!!scriptShare} onSynopsis={setSynopsis} onNavigation={setCloudNavigation} resume={resumeRecord?.target} onPlay={(url, name, size, target) => { setCloudTarget(scriptShare && playingEpisode && playingLine ? { ...target, script: { id: playingEpisode.url, flag: playingLine.name } } : target); setPlaying({url, name, size}); }} />}
+          {(quarkLine(selected.source).sites.length > 0 || scriptShare) && <NetdiskFiles key={JSON.stringify([selected.source.key, selected.vod_id, scriptShare])} detailUrl={scriptShare || String(selected.vod_id)} searchEntry={searchEntry} directShare={!!scriptShare} onSynopsis={setSynopsis} onNavigation={setCloudNavigation} resume={resumeRecord?.target} onPlay={(url, name, size, target) => { setCloudTarget(scriptShare && playingEpisode && playingLine ? { ...target, script: { id: playingEpisode.url, flag: playingLine.name } } : target); setPlaying({url, name, size}); }} />}
           {!quarkLine(selected.source).sites.length && <>
             <h2>播放线路</h2>
             {!detailLoading && !lines.length && <p className="episode-hint">暂无可播放选集</p>}
@@ -570,7 +570,7 @@ function App() {
         {!playerWindow && channels.some(item => item.id === page) && <Discovery onLoadingChange={setPageLoading} channel={page as Channel} disabled={busy} onPick={title => { setQuery(title); navigate('search'); void search(title); }} />}
         {page === 'settings' && settingsTab === 'basic' && <BasicSettings />}
         {page === 'settings' && settingsTab === 'resources' && <ResourceSettings mode={resourceMode} busy={busy || !desktop} count={feed?.count} updatedAt={updatedAt} entries={customResources} onMode={mode=>sync(DEFAULT_URL,false,mode)} onRefresh={()=>sync(DEFAULT_URL,true,'default',true)} onChange={updateCustomResources} />}
-        {page === 'settings' && settingsTab === 'authorizations' && <QuarkSettings />}
+        {page === 'settings' && settingsTab === 'authorizations' && <NetdiskSettings />}
       </section>}
       <footer className="page-footer"><span>MQTV · 每一个好故事，都值得被发现。</span><span>{versionLabel}</span></footer>
     </main>

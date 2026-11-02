@@ -165,9 +165,9 @@ describe('business requests and cache integration', () => {
     expect(new URL(invoke.mock.calls[0][1].url).searchParams.get('page_start')).toBe('60');
   });
   it('validates update responses through the business API', async () => {
-    invoke.mockResolvedValue({ updateAvailable: false });
+    invoke.mockResolvedValue({ schemaVersion: 1, packageName: 'com.maolike.mqtv.desktop', versionCode: 1, versionName: '0.1.0', notes: '', packages: [{ platform: 'macos', arch: 'arm64', downloadUrl: 'https://github.com/MaoLikeQvQ/MQTV-Desktop/releases/download/v0.1.0/test.dmg' }] });
     expect(await checkAppUpdate({ platform: 'macos', arch: 'arm64', osVersion: '26.0', packageName: 'com.maolike.mqtv.desktop', versionCode: 1, versionName: '0.1.0' })).toEqual({ updateAvailable: false });
-    expect(new URL(invoke.mock.calls[0][1].url).origin).toBe(BACKEND_URL);
+    expect(invoke.mock.calls[0][1].url).toBe('https://github.com/MaoLikeQvQ/MQTV-Desktop/releases/latest/download/desktop-update.json');
   });
   it('preserves native cover routing and image bytes', async () => {
     invoke.mockResolvedValue([1, 2, 3]);

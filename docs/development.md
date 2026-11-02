@@ -15,17 +15,17 @@ pnpm dev
 
 `pnpm dev` 启动 Tauri 桌面应用，并自动启动 Vite 前端服务；只调试网页前端时使用 `pnpm dev:web`。启动命令需要本机已安装 pnpm。
 
-默认资源接口由 `VITE_API_BASE_URL` 加 `/api/resources` 生成。资源订阅、授权和更新请求使用该后台域名；发现页列表及豆瓣封面直接请求豆瓣；历史回环默认地址自动迁移，其他已保存订阅地址保留。应用打包名称为“晴雨影视”。
+默认资源接口由 `VITE_API_BASE_URL` 加 `/api/resources` 生成。资源订阅和授权请求使用该后台域名，桌面更新独立使用 GitHub Releases；发现页列表及豆瓣封面直接请求豆瓣；历史回环默认地址自动迁移，其他已保存订阅地址保留。应用打包名称为“晴雨影视”。
 
-## 统一搜索与夸克
+## 统一搜索与网盘授权
 
 默认订阅和自定义订阅均允许当前已适配的 JSON CMS（type=1）与配置有效的 WoGG 线路参与搜索，仍尊重 searchable=0，不执行其他 Android 插件或脚本。只使用订阅实际返回的线路，不自动改用全量资源接口或启用后台停用线路。
 
 - 支持带 `ext.siteUrl` / `ext.site` 的 HTTPS WoGG 来源。
 - `csp_WoGGGuard` 没有显式站点配置时，桌面适配使用 `https://www.wogg.net/`。
 - 不运行 Android JAR；其他插件需要单独适配。
-- 搜索结果保留来源，点击影片后内部遍历夸克目录和分页，直接展示可播放选集，无需手动浏览文件夹。
-- 首次访问文件时从同一后台 `/api/authorizations/quark` 领取账号，加密保存到应用本机数据目录下的 SQLite。Cookie 不返回 React、不保存在 localStorage。
+- 搜索结果保留来源，点击影片后内部遍历夸克或 UC 目录和分页，直接展示可播放选集，无需手动浏览文件夹。
+- 通过内测码分别从同一后台 `/api/authorizations/quark` 或 `/api/authorizations/uc` 领取对应网盘账号，加密保存到应用本机数据目录下的 SQLite。Cookie 不返回 React、不保存在 localStorage。
 - 本地授权持续复用；仅明确的认证失效触发重新分配，网络超时、限流和影片失败保留授权。设置可检查授权。
 - 用户点击“播放”后，内部将视频保存到账号的 `MQTV` 目录，复用已保存文件；不会自动删除网盘内容。
 - 使用夸克视频播放接口，播放清单、分片和密钥经随机路径的回环 HTTP 服务转发；Cookie 只发往夸克域名。
@@ -101,9 +101,9 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 ## 桌面版本更新
 
-设置 → 基础设置 → 版本更新，点击右侧图标手动检查。客户端使用默认资源服务同源的 tvadmin /api/update，发送实际平台（macos/windows）、架构、系统版本、应用标识和构建号。发现兼容的新版后展示版本说明，点击“下载新版”通过系统浏览器下载安装包，再手动安装；暂无兼容版本和请求失败分别提示。
+设置 → 基础设置 → 版本更新，点击右侧图标手动检查。客户端从 `https://github.com/MaoLikeQvQ/MQTV-Desktop/releases/latest/download/desktop-update.json` 获取清单，不上传平台、设备、账号信息。平台、架构、应用标识、构建号和可选最低系统版本在本地匹配；只允许当前仓库的 HTTPS Release 安装包附件。发现兼容新版后展示说明，点击“下载新版”通过系统浏览器下载，再手动安装；不执行静默安装。
 
-发布时同步提升 Tauri 应用版本和 src-tauri/src/commands/app.rs 的 APP_BUILD（当前为 1）；tvadmin 上传对应安装包时，应用标识填写 com.maolike.mqtv.desktop、客户端类型为 desktop，构建号必须大于已安装版本，选择对应平台、架构与最低系统版本，并发布后才会被检查接口返回。更新服务、默认资源订阅与图片代理统一使用根目录环境变量 VITE_API_BASE_URL，默认值见 .env。
+发布时同步提升 Tauri 应用版本和 `src-tauri/src/commands/app.rs` 的 `APP_BUILD`（当前为 101），在本地按既定签名身份打包，再将安装包及 `desktop-update.json` 上传到同一个 GitHub Release。源码中 `releases/desktop-update.json` 对应1.0.1 / 101 测试版；新版本必须更新清单，不能把旧包标成新构建。详细流程见 [GitHub 本地打包发布](github-releases.md)。默认资源订阅和授权继续使用 `VITE_API_BASE_URL`，更新渠道不再依赖 tvadmin。
 
 ## 动漫频道
 
@@ -253,7 +253,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib
 
 推荐、电影、电视剧、综艺及动漫列表通过 `movie.douban.com` 的 `/j/search_subjects`、`/j/new_search_subjects` 加载，不依赖后台的榜单或豆瓣转发路由。推荐页默认一周口碑榜通过原生 `douban_weekly` 读取豆瓣 `/chart`，仅解析口碑榜区域并保留原始排名；榜单先显示，再按排名并发查询 `/j/subject_suggest`，以影片 ID 精确匹配并逐张补充封面。电影页继续使用热门列表；海外剧和海外综艺分别读取美国、英国、日本、韩国并交替合并去重，完整保留每页各地区的条目以避免分页遗漏。各地区按展示顺序发起并发请求，每份结果返回立即显示，不等待其他地区；地区失败不影响其他请求，最后明确提示失败，不缓存不完整的聚合结果。
 
-API 层返回豆瓣原始响应，服务层使用通用豆瓣解析器转换成发现条目；保留原有一小时启动缓存和手动重试。豆瓣封面直连图片域名并使用原生来源请求头，继续写入已有图片缓存。资源订阅、授权和版本更新仍使用 tvadmin。
+API 层返回豆瓣原始响应，服务层使用通用豆瓣解析器转换成发现条目；保留原有一小时启动缓存和手动重试。豆瓣封面直连图片域名并使用原生来源请求头，继续写入已有图片缓存。资源订阅和授权仍使用 tvadmin，桌面版本更新使用 GitHub Releases。
 
 ### 发现列表滚动分页
 
@@ -298,13 +298,21 @@ Tauri 将解释器复制到资源目录 `runtime/python/`，宿主复制到 `run
 2026-10-29 集中验证：Vitest 113 项、内置 Python 测试 10 项、Rust 库测试 32 项通过（9 项忽略），前端构建与 Cargo check 通过。真实 drpy2 引擎配合受控规则完成搜索、详情与播放解析；真实 Acfun Python 样本搜索得到 30 项并返回播放地址。NyaFun 真实规则联网搜索失败或超时，尚不能确认线路可用。Mac 锁屏，未验证 GUI 视频起播；Windows 运行、安装包和签名未验证。
 
 
+## UC 授权与播放
+
+UC 功能由本项目随包编译的 `mqtv-netdisk::uc` 提供，不加载 Android JAR。设置 → 授权管理展示 UC 扫码及授权码入口；UC 扫码使用 UC 浏览器。应用层将成功验证的 UC 会话保存到独立的 `uc-authorization` 加密记录，不覆盖夸克账号；授权码通过环境配置后台的 `/api/authorizations/uc` 领取账号。后台需要启用相应 UC 授权账号。
+
+UC 协议包括 `api.open.uc.cn` 的 CAS 扫码、`drive.uc.cn/account/info` 的票据交换和独立身份验证、`pc-api.uc.cn` 的网盘会话及分享接口。播放按需转存选中的视频并使用 `/file/download` 返回的原画地址，保留客户端 User-Agent 和必要会话；媒体经本机随机路径代理，凭据不返回 React。失败和取消不替换原授权，明确认证失效后才要求重新扫码或领取后台账号。
+
+普通验证不访问本机真实凭据或执行云端转存。源码适配、离线测试和构建通过均不能替代真实扫码、账号权益和桌面起播验收。
+
 ## Rust 多包结构与网盘边界
 
 根目录 Cargo workspace 包含 Tauri 应用与 `crates/netdisk`（`mqtv-netdisk`）。锁文件与 release profile 统一放在根目录；`.cargo/config.toml` 保留构建产物位置 `src-tauri/target`，原有 Tauri 打包和内置 Python 路径不变。
 
-网盘包的 `quark` 模块负责 HTTP/Cookie 更新、扫码会话、分享目录、选集、转存、播放与媒体代理。它不依赖 Tauri、钥匙串或 tvadmin。应用通过 `CredentialStore` 提供原生凭证快照、保存 Cookie/转存记录、安装扫码授权；凭证仅存应用本地文件，保留原字段格式。应用命令负责持有包提供的共享授权锁，准备/刷新 tvadmin 授权，转发到包接口。播放失效仍要求用户重新点击，不自动重复转存。应用退出同时关闭脚本与夸克媒体代理。
+网盘包的 `quark`、`uc` 同级模块分别负责各自的 HTTP/Cookie 更新、扫码会话、分享目录、选集、转存、播放与媒体代理。它不依赖 Tauri、钥匙串或 tvadmin。应用通过 `CredentialStore` 提供原生凭证快照、保存 Cookie/转存记录、安装扫码授权；凭证仅存应用本地文件，保留原字段格式。应用命令负责持有包提供的共享授权锁，准备/刷新 tvadmin 授权，转发到包接口。播放失效仍要求用户重新点击，不自动重复转存。切换影片、关闭播放窗口或退出应用时关闭对应网盘媒体代理。
 
-WoGG 搜索与 HTML 详情提取属于来源适配，仍留在应用中。未来新增网盘可在包内增加同级 provider 模块，按实际共性提取类型；目前不创建其他网盘占位实现。前端 API、localStorage 和播放历史契约不变。
+WoGG 搜索与 HTML 详情提取属于来源适配，仍留在应用中。UC 按已有包边界增加同级 provider 模块，授权锁、会话、Cookie、转存映射和媒体代理分别隔离；继续保留原夸克命令和历史格式。前端 API、localStorage 和播放历史契约不变。
 
 ```sh
 cargo test -p mqtv-netdisk

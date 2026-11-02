@@ -23,6 +23,11 @@ pub(crate) fn backend_endpoint(path: &str) -> Result<Url, String> {
         .map_err(|_| "后台接口地址无效".into())
 }
 
+/// 使用与资源后台同源的 UC 授权接口，不增加独立环境变量或存储后台地址。
+pub(crate) fn uc_authorization_endpoint() -> Result<Url, String> {
+    backend_endpoint("/api/authorizations/uc")
+}
+
 #[cfg(test)]
 #[path = "tests/config.rs"]
 mod tests;

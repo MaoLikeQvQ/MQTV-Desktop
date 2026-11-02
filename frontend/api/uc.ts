@@ -1,0 +1,40 @@
+import { invokePlayback } from '@/platform/playback-request';
+
+export type UcAccount = { cached: boolean; accountId?: string; name?: string; local?: boolean };
+export type UcLoginSession = { id: string; scanUrl: string };
+export type UcEpisode = { id: string; name: string; path?: string; size?: number; parent: string; page: number };
+export type UcFile = { id: string; name: string; folder: boolean; size?: number; video: boolean };
+/** 读取分享的一页目录；分享访问令牌和文件转存令牌仅保留在原生层。 */
+export const readUcFiles = (share: string, passcode: string, parent: string, page: number) => invokePlayback<{ files: UcFile[]; total?: number; pageSize: number }>('uc_files', { share, passcode, parent, page });
+/** 读取原生授权状态，授权后台统一使用构建环境的 VITE_API_BASE_URL。 */
+export const readUcSettings = () => invokePlayback<UcAccount>('uc_settings');
+/** 请求创建UC扫码会话，返回会话 ID 和用于生成二维码的链接。 */
+export const createUcLogin = () => invokePlayback<UcLoginSession>('uc_qr_create');
+/** 查询指定扫码会话状态，登录凭证由原生层处理且不返回前端。 */
+export const pollUcLogin = (id: string | undefined) => invokePlayback<{ state: string }>('uc_qr_poll', { id });
+/** 取消指定扫码会话，阻止关闭弹窗后的会话继续完成授权。 */
+export const cancelUcLogin = (id: string) => invokePlayback('uc_qr_cancel', { id });
+/** 提交内测授权码领取UC授权，成功后由原生层保存凭证。 */
+export const authorizeUcCode = (authorizationCode: string) => invokePlayback<UcAccount>('uc_authorize_code', { authorizationCode });
+/** 请求线路详情并提取可用的UC分享链接。 */
+export const readUcDetail = (url: string) => invokePlayback<string[]>('uc_line_detail', { url });
+/**
+ * 请求解析UC分享的目录和分页，返回可播放选集。
+ * @param share UC分享地址。
+ * @param passcode 分享提取码，没有时传空字符串。
+ */
+export const readUcEpisodes = (share: string, passcode: string) => invokePlayback<{ episodes: UcEpisode[] }>('uc_episodes', { share, passcode });
+/**
+ * 请求原生层准备指定UC选集，返回供播放器使用的本地代理地址。
+ * @param args 分享、目录、提取码、文件 ID 和文件所在页。
+ */
+export const playUcEpisode = (args: { share: string; parent: string; passcode: string; fid: string; page: number }) => invokePlayback<{ url: string }>('uc_play', args);
+
+/** 读取玩偶详情中的纯文本简介与UC分享列表，不包含其他网盘分享。 */
+export const readUcInfo = (url: string) => invokePlayback<{ shares: string[]; synopsis: string }>('uc_line_info', { url });
+
+/** 读取当前UC媒体会话累计下载字节；非当前代理地址返回 null，不发起测速下载。 */
+export const readUcDownloadedBytes = (url: string) => invokePlayback<number | null>('uc_downloaded_bytes', { url });
+
+/** 读取玩偶详情中的夸克与 UC 分享及简介，由原生层完成一次页面请求。 */
+export const readNetdiskInfo = (url: string) => invokePlayback<{ shares: string[]; synopsis: string }>('netdisk_line_info', { url });

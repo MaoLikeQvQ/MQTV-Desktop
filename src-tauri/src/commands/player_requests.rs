@@ -1,6 +1,6 @@
 //! 为跨模块播放请求绑定调用窗口的取消作用域；原业务函数保留给主流程和隔离测试。
 use crate::{
-    features::{adapters, quark, scripts},
+    features::{adapters, quark, scripts, uc},
     request_scope,
 };
 use serde_json::Value;
@@ -11,6 +11,7 @@ use tauri::{AppHandle, WebviewWindow};
 pub(crate) fn media_downloaded_bytes(url: String) -> Option<u64> {
     scripts::media::downloaded_bytes(&url)
         .or_else(|| mqtv_netdisk::quark::downloaded_bytes(&url))
+        .or_else(|| mqtv_netdisk::uc::downloaded_bytes(&url))
 }
 
 /// 普通媒体复用已登记目标的回环代理，避免 WebView 的跨域请求被上游拒绝；不注入网盘凭证。
@@ -212,6 +213,94 @@ pub(crate) async fn quark_play(
         &window,
         playback_revision,
         quark::playback::quark_play(share, parent, passcode, fid, page),
+    )
+    .await
+}
+
+/// 在窗口作用域内提取详情中的网盘分享。
+#[tauri::command]
+pub(crate) async fn uc_line_detail(
+    window: WebviewWindow,
+    playback_revision: Option<u64>,
+    url: String,
+) -> Result<Vec<String>, String> {
+    request_scope::run(&window, playback_revision, uc::search::uc_line_detail(url)).await
+}
+
+/// 在窗口作用域内提取详情简介和网盘分享。
+#[tauri::command]
+pub(crate) async fn uc_line_info(
+    window: WebviewWindow,
+    playback_revision: Option<u64>,
+    url: String,
+) -> Result<Value, String> {
+    request_scope::run(&window, playback_revision, uc::search::uc_line_info(url)).await
+}
+
+/// 将授权锁等待、分享目录请求和认证刷新统一归属调用窗口。
+#[tauri::command]
+pub(crate) async fn uc_files(
+    window: WebviewWindow,
+    playback_revision: Option<u64>,
+    share: String,
+    parent: Option<String>,
+    passcode: Option<String>,
+    page: Option<u32>,
+) -> Result<Value, String> {
+    request_scope::run(
+        &window,
+        playback_revision,
+        uc::files::uc_files(share, parent, passcode, page),
+    )
+    .await
+}
+
+/// 在窗口作用域内遍历可播放选集，关闭窗口即取消当前遍历 future。
+#[tauri::command]
+pub(crate) async fn uc_episodes(
+    window: WebviewWindow,
+    playback_revision: Option<u64>,
+    share: String,
+    passcode: Option<String>,
+) -> Result<Value, String> {
+    request_scope::run(
+        &window,
+        playback_revision,
+        uc::files::uc_episodes(share, passcode),
+    )
+    .await
+}
+
+/// 将转存准备、轮询、媒体探测及代理创建绑定到播放窗口。
+#[tauri::command]
+pub(crate) async fn uc_play(
+    window: WebviewWindow,
+    playback_revision: Option<u64>,
+    share: String,
+    parent: String,
+    passcode: Option<String>,
+    fid: String,
+    page: Option<u32>,
+) -> Result<Value, String> {
+    request_scope::run(
+        &window,
+        playback_revision,
+        uc::playback::uc_play(share, parent, passcode, fid, page),
+    )
+    .await
+}
+
+/// 在同一播放代际内读取混合网盘分享；关闭或切片后丢弃迟到响应。
+#[tauri::command]
+pub(crate) async fn netdisk_line_info(
+    window: WebviewWindow,
+    playback_revision: Option<u64>,
+    url: String,
+) -> Result<Value, String> {
+    request_scope::run(
+        &window,
+        playback_revision,
+        uc::search::netdisk_line_info(url),
     )
     .await
 }

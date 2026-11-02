@@ -7,5 +7,5 @@ import { parseUpdateResult, type AppUpdateInfo } from '@/domain/settings/app-upd
  * @throws 请求失败或响应不符合更新契约时抛出错误。
  */
 export async function checkAppUpdate(info: AppUpdateInfo) {
-  return parseUpdateResult(await fetchAppUpdate(info), info);
+  return parseUpdateResult(await fetchAppUpdate(), info);
 }

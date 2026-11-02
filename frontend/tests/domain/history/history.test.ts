@@ -114,3 +114,28 @@ describe('stable progress restoration identity', () => {
     expect(samePlaybackTarget({ ...record.target, url: 'https://example.com/refreshed' }, record.target)).toBe(true);
   });
 });
+
+
+describe('UC history isolation', () => {
+  const file = { id: 'same-id', name: '第三集', parent: 'folder', page: 1 };
+  const target = { line: '线路 1', episode: '第三集', episodeIndex: 0, episodeCount: 1, uc: { share: 'https://drive.uc.cn/s/a', file } };
+  it('persists UC identity without a temporary proxy URL and restores only the same provider/file/share', () => {
+    const store = storage(), cloud = { ...record, target };
+    saveHistory(store, [cloud]);
+    expect(readHistory(store)).toEqual([cloud]);
+    expect(store.getItem(HISTORY_KEY)).not.toContain('127.0.0.1');
+    expect(samePlaybackTarget(target, target)).toBe(true);
+    expect(samePlaybackTarget({ ...target, uc: { ...target.uc, share: 'https://drive.uc.cn/s/b' } }, target)).toBe(false);
+    expect(samePlaybackTarget({ ...target, uc: { ...target.uc, file: { ...file, id: 'other' } } }, target)).toBe(false);
+    expect(samePlaybackTarget({ ...record.target, quark: { share: 'https://pan.quark.cn/s/a', file } }, target)).toBe(false);
+  });
+  it('filters mixed-provider and malformed UC history records', () => {
+    const store = storage();
+    store.setItem(HISTORY_KEY, JSON.stringify([
+      { ...record, target: { ...target, uc: { ...target.uc, share: 'https://evil.test/s/a' } } },
+      { ...record, target: { ...target, quark: { share: 'https://pan.quark.cn/s/a', file } } },
+      { ...record, target: { ...target, uc: { ...target.uc, file: { ...file, page: 0 } } } },
+    ]));
+    expect(readHistory(store)).toEqual([]);
+  });
+});

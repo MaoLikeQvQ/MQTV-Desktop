@@ -45,6 +45,7 @@ describe('script source protocol', () => {
     expect(await resolveSourcePlayback(cms, 'hls', 'https://cdn.test/video.m3u8', [])).toContain('/session/');
     expect(invoke).toHaveBeenLastCalledWith('media_play', { url: 'https://cdn.test/video.m3u8' });
     expect(await resolveSourcePlayback(cms, '夸克', 'https://pan.quark.cn/s/test', [])).toBe('https://pan.quark.cn/s/test');
+    expect(await resolveSourcePlayback(cms, 'UC', 'https://drive.uc.cn/s/test', [])).toBe('https://drive.uc.cn/s/test');
     expect(invoke).toHaveBeenCalledTimes(1);
   });
   it('retains CMS transport and rejects malformed search response', async () => {
