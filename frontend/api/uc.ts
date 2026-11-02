@@ -38,3 +38,6 @@ export const readUcDownloadedBytes = (url: string) => invokePlayback<number | nu
 
 /** 读取玩偶详情中的夸克与 UC 分享及简介，由原生层完成一次页面请求。 */
 export const readNetdiskInfo = (url: string) => invokePlayback<{ shares: string[]; synopsis: string }>('netdisk_line_info', { url });
+
+/** 主动从后台刷新托管账号；原生复用已保存授权码，扫码账号保留，失败不替换旧授权。 */
+export const refreshUcAuthorization = () => invokePlayback<UcAccount & { refreshed: boolean }>('uc_refresh');

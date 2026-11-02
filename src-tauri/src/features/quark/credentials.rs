@@ -57,7 +57,12 @@ pub(super) fn init_smoke() {
 /// 后台统一使用构建环境配置；切换环境时清除后台租约，保留本地扫码账号及其他字段。
 fn normalize(mut settings: Settings) -> Result<Settings, String> {
     let backend = crate::config::backend_url()?.to_string();
-    if settings.backend != backend && !settings.lease.as_ref().is_some_and(|l| l["source"] == "local") {
+    if settings.backend != backend
+        && !settings
+            .lease
+            .as_ref()
+            .is_some_and(|l| l["source"] == "local")
+    {
         settings.lease = None;
     }
     settings.backend = backend;
@@ -83,6 +88,11 @@ pub(super) fn load() -> Result<Settings, String> {
             ..Settings::default()
         }),
     }
+}
+
+/// 在原生层读取已保存内测码的快照；不获取提供商锁，避免跨网盘反向等待。
+pub(crate) fn stored_code() -> Result<Option<String>, String> {
+    Ok(load()?.authorization_code)
 }
 
 /// 将授权码、账号 Cookie 及转存映射加密保存至 SQLite，不通过前端传递。

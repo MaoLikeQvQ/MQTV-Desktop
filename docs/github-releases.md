@@ -1,6 +1,12 @@
 # GitHub 本地打包发布
 
-桌面更新使用公开仓库 `MaoLikeQvQ/MQTV-Desktop` 的 GitHub Releases。安装包可在本地构建，不要求 GitHub Actions。客户端只检查版本并在用户点击后打开安装包下载地址，不进行静默安装。
+客户端已恢复使用 tvadmin `/api/update` 检查更新，安装包通过后台同源的 `/api/apk/<id>` 下载。仓库已设为私有，GitHub Releases 仅用于维护者存档，私有附件不能作为客户端公开更新地址。当前发布步骤见 [桌面版本更新](development.md#桌面版本更新)。
+
+以下更新清单及附件发布步骤保留为原 GitHub 渠道的历史参考，不再是当前客户端更新流程。
+
+## Release 命名
+
+后续 Release 标题统一使用“应用名 + 空格 + 版本号”，例如 `晴雨影视 1.0.2`。标题不添加“测试版”、功能描述或其他后缀；更新内容及实际验证、签名情况写在发布说明中。Git 标签继续使用 `v<版本号>`，例如 `v1.0.2`。
 
 ## 更新清单
 
@@ -40,7 +46,7 @@ https://github.com/MaoLikeQvQ/MQTV-Desktop/releases/latest/download/desktop-upda
    ```sh
    gh release create <tag> /absolute/path/to/installer releases/desktop-update.json \
      --repo MaoLikeQvQ/MQTV-Desktop --draft \
-     --title '<版本标题>' --notes-file /absolute/path/to/release-notes.md
+     --title '晴雨影视 <版本号>' --notes-file /absolute/path/to/release-notes.md
    ```
 
 6. 在 GitHub 检查草稿附件和说明，确保它们来自预期源码快照。正式发布前完成签名和目标系统验收，然后发布并设为 Latest：

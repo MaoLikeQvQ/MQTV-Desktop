@@ -15,7 +15,7 @@ pnpm dev
 
 `pnpm dev` 启动 Tauri 桌面应用，并自动启动 Vite 前端服务；只调试网页前端时使用 `pnpm dev:web`。启动命令需要本机已安装 pnpm。
 
-默认资源接口由 `VITE_API_BASE_URL` 加 `/api/resources` 生成。资源订阅和授权请求使用该后台域名，桌面更新独立使用 GitHub Releases；发现页列表及豆瓣封面直接请求豆瓣；历史回环默认地址自动迁移，其他已保存订阅地址保留。应用打包名称为“晴雨影视”。
+默认资源接口由 `VITE_API_BASE_URL` 加 `/api/resources` 生成。资源订阅、授权和桌面更新请求使用该后台域名；发现页列表及豆瓣封面直接请求豆瓣；历史回环默认地址自动迁移，其他已保存订阅地址保留。应用打包名称为“晴雨影视”。
 
 ## 统一搜索与网盘授权
 
@@ -101,9 +101,10 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 ## 桌面版本更新
 
-设置 → 基础设置 → 版本更新，点击右侧图标手动检查。客户端从 `https://github.com/MaoLikeQvQ/MQTV-Desktop/releases/latest/download/desktop-update.json` 获取清单，不上传平台、设备、账号信息。平台、架构、应用标识、构建号和可选最低系统版本在本地匹配；只允许当前仓库的 HTTPS Release 安装包附件。发现兼容新版后展示说明，点击“下载新版”通过系统浏览器下载，再手动安装；不执行静默安装。
+设置 → 基础设置 → 版本更新，点击右侧图标手动检查。客户端使用默认资源服务同源的 tvadmin /api/update，发送实际平台（macos/windows）、架构、系统版本、应用标识和构建号。发现兼容的新版后展示版本说明，点击“下载新版”通过系统浏览器下载安装包，再手动安装；暂无兼容版本和请求失败分别提示。
 
-发布时同步提升 Tauri 应用版本和 `src-tauri/src/commands/app.rs` 的 `APP_BUILD`（当前为 101），在本地按既定签名身份打包，再将安装包及 `desktop-update.json` 上传到同一个 GitHub Release。源码中 `releases/desktop-update.json` 对应1.0.1 / 101 测试版；新版本必须更新清单，不能把旧包标成新构建。详细流程见 [GitHub 本地打包发布](github-releases.md)。默认资源订阅和授权继续使用 `VITE_API_BASE_URL`，更新渠道不再依赖 tvadmin。
+发布时同步提升 Tauri 应用版本和 src-tauri/src/commands/app.rs 的 APP_BUILD（当前为 102）；tvadmin 上传对应安装包时，应用标识填写 com.maolike.mqtv.desktop、客户端类型为 desktop，构建号必须大于已安装版本，选择对应平台、架构与最低系统版本，并发布后才会被检查接口返回。更新服务、默认资源订阅与图片代理统一使用根目录环境变量 VITE_API_BASE_URL，默认值见 .env。
+后续 GitHub Release 标题仍统一为“应用名 + 空格 + 版本号”（例如 `晴雨影视 1.0.2`），不添加“测试版”、功能描述或其他后缀。GitHub Release 仅作存档，不作为客户端更新入口；私有仓库附件不能作为公开下载安装包地址。
 
 ## 动漫频道
 
@@ -253,7 +254,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib
 
 推荐、电影、电视剧、综艺及动漫列表通过 `movie.douban.com` 的 `/j/search_subjects`、`/j/new_search_subjects` 加载，不依赖后台的榜单或豆瓣转发路由。推荐页默认一周口碑榜通过原生 `douban_weekly` 读取豆瓣 `/chart`，仅解析口碑榜区域并保留原始排名；榜单先显示，再按排名并发查询 `/j/subject_suggest`，以影片 ID 精确匹配并逐张补充封面。电影页继续使用热门列表；海外剧和海外综艺分别读取美国、英国、日本、韩国并交替合并去重，完整保留每页各地区的条目以避免分页遗漏。各地区按展示顺序发起并发请求，每份结果返回立即显示，不等待其他地区；地区失败不影响其他请求，最后明确提示失败，不缓存不完整的聚合结果。
 
-API 层返回豆瓣原始响应，服务层使用通用豆瓣解析器转换成发现条目；保留原有一小时启动缓存和手动重试。豆瓣封面直连图片域名并使用原生来源请求头，继续写入已有图片缓存。资源订阅和授权仍使用 tvadmin，桌面版本更新使用 GitHub Releases。
+API 层返回豆瓣原始响应，服务层使用通用豆瓣解析器转换成发现条目；保留原有一小时启动缓存和手动重试。豆瓣封面直连图片域名并使用原生来源请求头，继续写入已有图片缓存。资源订阅、授权和桌面版本更新均使用 tvadmin。
 
 ### 发现列表滚动分页
 
@@ -300,7 +301,7 @@ Tauri 将解释器复制到资源目录 `runtime/python/`，宿主复制到 `run
 
 ## UC 授权与播放
 
-UC 功能由本项目随包编译的 `mqtv-netdisk::uc` 提供，不加载 Android JAR。设置 → 授权管理展示 UC 扫码及授权码入口；UC 扫码使用 UC 浏览器。应用层将成功验证的 UC 会话保存到独立的 `uc-authorization` 加密记录，不覆盖夸克账号；授权码通过环境配置后台的 `/api/authorizations/uc` 领取账号。后台需要启用相应 UC 授权账号。
+UC 功能由本项目随包编译的 `mqtv-netdisk::uc` 提供，不加载 Android JAR。设置 → 授权管理展示 UC 扫码及授权码入口；UC 扫码使用 UC 浏览器。应用层将成功验证的 UC 会话保存到独立的 `uc-authorization` 加密记录，不覆盖夸克账号；授权码通过环境配置后台的 `/api/authorizations/uc` 领取账号。后台需要启用相应 UC 授权账号。 主动刷新会分别重新领取后台授权，当前网盘未保存授权码时在原生层复用另一网盘已验证的授权码，因此已有夸克授权码也可领取后台新增的 UC 授权；本地扫码账号不参与后台刷新，失败保留原账号，成功后才替换并清空对应转存映射。
 
 UC 协议包括 `api.open.uc.cn` 的 CAS 扫码、`drive.uc.cn/account/info` 的票据交换和独立身份验证、`pc-api.uc.cn` 的网盘会话及分享接口。播放按需转存选中的视频并使用 `/file/download` 返回的原画地址，保留客户端 User-Agent 和必要会话；媒体经本机随机路径代理，凭据不返回 React。失败和取消不替换原授权，明确认证失效后才要求重新扫码或领取后台账号。
 

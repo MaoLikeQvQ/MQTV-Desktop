@@ -43,16 +43,17 @@
 .watch-page:has(.player-screen-fullscreen) { animation: none; }
 .controlled-player.player-screen-fullscreen { position: fixed; inset: 0; z-index: 1400; }
 .controlled-player video { cursor: pointer; }
-.controlled-player:not(.controls-visible):not(:focus-within) { cursor: none; }
-.player-heading { position: absolute; inset: 0 0 auto; display: flex; align-items: flex-start; gap: 20px; padding: 20px 24px 42px; background: linear-gradient(#0008,transparent); pointer-events: none; opacity: 0; transition: opacity 180ms; text-shadow: 0 1px 4px #0008; }
+.controlled-player:not(.controls-visible):not(:has(.media-controls :focus-visible)),
+.controlled-player:not(.controls-visible):not(:has(.media-controls :focus-visible)) video { cursor: none; }
+.player-heading { position: absolute; inset: 0 0 auto; display: flex; align-items: flex-start; gap: 20px; padding: 20px 24px 42px; background: linear-gradient(#0008,transparent); pointer-events: none; opacity: 0; transform: translateY(-100%); transition: opacity 2s ease, transform 2s ease; text-shadow: 0 1px 4px #0008; }
 .player-heading > div { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
 .player-heading strong { font-size: clamp(14px, 1.5cqw, 20px); font-weight: 500; }
 .player-heading strong, .player-episode { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .player-episode { font-size: 12px; color: #c1c7ce; }
-.media-controls { position: absolute; bottom: 0; left: 0; right: 0; padding: 54px 18px 12px; background: linear-gradient(transparent, #0006 38%, #000e); opacity: 0; transition: opacity 180ms; pointer-events: none; }
-.controls-visible .media-controls, .media-controls:focus-within { opacity: 1; pointer-events: auto; }
+.media-controls { position: absolute; bottom: 0; left: 0; right: 0; padding: 54px 18px 12px; background: linear-gradient(transparent, #0006 38%, #000e); opacity: 0; transform: translateY(100%); transition: opacity 2s ease, transform 2s ease; pointer-events: none; }
+.controls-visible .media-controls, .media-controls:has(:focus-visible) { opacity: 1; transform: translateY(0); pointer-events: auto; }
 /* 顶部信息跟随控制栏显示，播放器容器保留焦点时仍允许自动隐藏。 */
-.controls-visible .player-heading, .controlled-player:has(.media-controls:focus-within) .player-heading { opacity: 1; }
+.controls-visible .player-heading, .controlled-player:has(.media-controls :focus-visible) .player-heading { opacity: 1; transform: translateY(0); }
 .media-seek { height: 20px; position: relative; display: flex; align-items: center; }
 .media-seek::before { content: ''; position: absolute; left: 0; right: 0; height: 3px; background: #b5c2d24d; }
 .media-seek > span { position: absolute; height: 3px; background: #cad3dd70; pointer-events: none; }
@@ -156,8 +157,8 @@
 .watch-cinema .watch-primary { height: 100%; display: flex; position: relative; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .watch-cinema .player-stage { flex: 1; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; border-radius: 0; background: #000; }
 .watch-cinema .player-stage video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.watch-cinema .episode-panel { position: absolute; inset: 0 0 0 auto; z-index: 4; width: min(320px, 85vw); height: 100%; min-height: 0; padding: 0; border: 0; border-left: 1px solid #ffffff0f; border-radius: 0; overflow: hidden; background: #191b20eb; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: -16px 0 48px #0003; transform: translateX(0); visibility: visible; transition: transform 240ms var(--ease-out), visibility 0s; }
-.watch-cinema.episodes-closed .episode-panel { transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: none; transition: transform 240ms var(--ease-out), visibility 0s 240ms; }
+.watch-cinema .episode-panel { position: absolute; inset: 0 0 0 auto; z-index: 4; width: min(320px, 85vw); height: 100%; min-height: 0; padding: 0; border: 0; border-left: 1px solid #ffffff0f; border-radius: 0; overflow: hidden; background: #191b20eb; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: -16px 0 48px #0003; transform: translateX(0); visibility: visible; transition: transform 2s var(--ease-out), visibility 0s; }
+.watch-cinema.episodes-closed .episode-panel { transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: none; transition: transform 2s var(--ease-out), visibility 0s 2s; }
 .watch-cinema .watch-information { flex-shrink: 0; max-height: 40%; overflow-y: auto; padding: 24px 20px 18px; border-bottom: 1px solid #ffffff0d; scrollbar-width: thin; }
 .watch-cinema .watch-information h2 { font-size: 19px; line-height: 1.5; margin-bottom: 7px; }
 .watch-cinema .watch-metadata { font-size: 12px; margin-bottom: 12px; }
@@ -167,7 +168,7 @@
 .watch-cinema .cloud-episodes { flex: 1; min-height: 180px; }
 .watch-cinema .episode-grid { flex: 1; min-height: 100px; max-height: none; overflow-y: auto; align-content: start; scrollbar-width: thin; scrollbar-gutter: stable; }
 .watch-cinema .playback-lines { margin-bottom: 12px; padding-bottom: 12px; }
-.watch-cinema .watch-panel-edge { position: absolute; top: 50%; right: min(320px, 85vw); z-index: 5; width: 22px; height: 58px; transform: translateY(-50%); border-radius: 8px 0 0 8px; background: #25282bdd; opacity: .75; transition: right 240ms var(--ease-out), opacity 180ms; }
+.watch-cinema .watch-panel-edge { position: absolute; top: 50%; right: min(320px, 85vw); z-index: 5; width: 22px; height: 58px; transform: translateY(-50%); border-radius: 8px 0 0 8px; background: #25282bdd; opacity: .75; transition: right 2s var(--ease-out), opacity 180ms; }
 .watch-cinema .watch-panel-edge:hover, .watch-cinema .watch-panel-edge:focus-visible { opacity: 1; color: #fff; }
 .watch-cinema.episodes-closed .watch-panel-edge { right: 0; }
 /* 全屏时侧栏覆盖画面，选集后可继续收起，退出全屏恢复原侧栏状态。 */
@@ -220,7 +221,7 @@
 }
 
 /* 控制栏随侧栏同步让位，视频尺寸保持不变。 */
-.watch-cinema .media-controls, .watch-cinema .player-heading { transition: opacity 180ms, right 240ms var(--ease-out); }
+.watch-cinema .media-controls, .watch-cinema .player-heading { transition: opacity 2s ease, transform 2s ease, right 2s var(--ease-out); }
 @media (prefers-reduced-motion: reduce) {
   .watch-cinema .episode-panel, .watch-cinema.episodes-closed .episode-panel,
   .watch-cinema .watch-panel-edge, .watch-cinema .media-controls, .watch-cinema .player-heading { transition: none; }

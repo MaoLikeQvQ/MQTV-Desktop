@@ -89,6 +89,48 @@ pub async fn quark_authorize_code(authorization_code: String) -> Result<Value, S
     lease(&mut settings, &[]).await?;
     Ok(metadata(&settings))
 }
+/// 用户主动刷新后台授权；个人扫码账号保持原样，后台失败时不替换原凭证。
+#[tauri::command]
+pub async fn quark_refresh() -> Result<Value, String> {
+    let _guard = LOCK.lock().await;
+    let mut settings = load()?;
+    if settings
+        .lease
+        .as_ref()
+        .is_some_and(|lease| lease["source"] == "local")
+    {
+        let mut result = metadata(&settings);
+        result["refreshed"] = json!(false);
+        return Ok(result);
+    }
+    let fallback = if settings
+        .authorization_code
+        .as_deref()
+        .is_some_and(|code| !code.trim().is_empty())
+    {
+        None
+    } else {
+        super::super::uc::credentials::stored_code()?
+    };
+    let replacement = super::super::authorization_refresh::replacement(
+        "quark",
+        settings.lease.as_ref(),
+        settings.authorization_code.as_deref(),
+        fallback.as_deref(),
+        |code| super::super::authorization_refresh::request("quark", code),
+    )
+    .await?;
+    if let Some(replacement) = replacement {
+        settings.authorization_code = Some(replacement.code);
+        settings.lease = Some(replacement.lease);
+        settings.saved.clear();
+        save(&settings)?;
+    }
+    let mut result = metadata(&settings);
+    result["refreshed"] = json!(true);
+    Ok(result)
+}
+
 // No normal search/play request calls the backend again while a lease is cached.
 /// 处理已确认失效的授权：本地扫码账号要求重新扫码，后台账号清除缓存后排除旧账号重新领取。
 /// 调用方负责持有授权锁；普通网络或业务错误不应调用此函数。

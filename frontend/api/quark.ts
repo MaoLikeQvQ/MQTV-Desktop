@@ -38,3 +38,6 @@ export const readQuarkInfo = (url: string) => invokePlayback<{ shares: string[];
 
 /** 读取当前夸克媒体会话累计下载字节；非当前代理地址返回 null，不发起测速下载。 */
 export const readQuarkDownloadedBytes = (url: string) => invokePlayback<number | null>('quark_downloaded_bytes', { url });
+
+/** 主动从后台刷新托管账号；原生复用已保存授权码，扫码账号保留，失败不替换旧授权。 */
+export const refreshQuarkAuthorization = () => invokePlayback<QuarkAccount & { refreshed: boolean }>('quark_refresh');

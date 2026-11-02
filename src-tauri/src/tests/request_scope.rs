@@ -53,10 +53,15 @@ async fn cancelling_a_slow_http_request_closes_the_actual_local_connection() {
             .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 999999\r\n\r\npart")
             .await
             .unwrap();
-        tokio::time::timeout(Duration::from_secs(2), socket.read(&mut buffer))
+        match tokio::time::timeout(Duration::from_secs(2), socket.read(&mut buffer))
             .await
             .unwrap()
-            .unwrap()
+        {
+            Ok(count) => count,
+            // 取消尚未读完的响应时，关闭连接既可能返回 EOF，也可能返回 TCP RST。
+            Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => 0,
+            Err(error) => panic!("cancelled connection was not closed: {error}"),
+        }
     });
     let signal = Signal::new();
     let request = tauri::async_runtime::spawn(cancellable(Some(signal.clone()), async move {

@@ -80,3 +80,10 @@
 .resource-parse-status { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
 .resource-parse-status p { margin: 0; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
 .resource-parse-status .MuiCircularProgress-root { flex-shrink: 0; }
+
+.authorization-toolbar { display: flex; justify-content: flex-end; max-width: 600px; margin-bottom: 8px; }
+.authorization-info { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 1; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.authorization-info:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+.authorization-toolbar { align-items: center; justify-content: space-between; }
+.authorization-toolbar h2 { margin: 0; font-size: 15px; font-weight: 600; }

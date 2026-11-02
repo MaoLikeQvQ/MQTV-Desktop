@@ -42,6 +42,11 @@ pub(super) fn load() -> Result<Settings, String> {
     }
 }
 
+/// 在原生层读取已保存内测码的快照；不获取提供商锁，避免跨网盘反向等待。
+pub(crate) fn stored_code() -> Result<Option<String>, String> {
+    Ok(load()?.authorization_code)
+}
+
 /// 将授权码、账号 Cookie 及转存映射加密保存至 SQLite，不通过前端传递。
 pub(super) fn save(settings: &Settings) -> Result<(), String> {
     crate::storage::secret_save(

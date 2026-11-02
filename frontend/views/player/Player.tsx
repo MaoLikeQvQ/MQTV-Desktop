@@ -59,10 +59,13 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [rate, setRate] = useState(1);
-  /** 显示控制栏并重设两秒自动隐藏计时，暂停、悬停或键盘聚焦时保持可见。 */
+  /** 显示控制栏并重设两秒隐藏计时；拖动期间继续计时，键盘聚焦控件时保持可见。 */
   function reveal() {
     setVisible(true); clearTimeout(timer.current);
-    timer.current = setTimeout(() => { if (ref.current && !ref.current.paused && !stage.current?.querySelector(':focus-visible') && !stage.current?.querySelector('.media-controls:hover')) setVisible(false); }, 2000);
+    timer.current = setTimeout(() => {
+      if (stage.current?.querySelector('.media-controls :active')) { reveal(); return; }
+      if (ref.current && !ref.current.paused && !stage.current?.querySelector('.media-controls :focus-visible')) setVisible(false);
+    }, 2000);
   }
   /** 切换播放与暂停，开始播放失败时显示可操作提示。 */
   async function toggle() {
@@ -256,7 +259,7 @@ export function Player({ url, title, episode, navigation = {}, initialProgress, 
       {navigation.busy && <div className="player-status" role="status"><div><CircularProgress size={22} /><span>正在准备播放…</span><span className="player-download-rate">{downloadRateText(downloadRate)}</span></div></div>}
       {loading && !navigation.busy && !error && <div className="player-status" role="status"><div><CircularProgress size={22} /><span>正在加载视频…</span><span className="player-download-rate">{downloadRateText(downloadRate)}</span></div></div>}
       {paused && !loading && !navigation.busy && !error && <button className="player-center-play" aria-label="继续播放" onClick={() => void toggle()}><PlayIcon /><span>继续播放</span></button>}
-      <div className="media-controls" aria-label="播放控制" onFocus={reveal}>
+      <div className="media-controls" aria-label="播放控制" onFocus={reveal} onBlur={reveal}>
         <div className="media-seek"><span style={{width:`${duration ? buffered/duration*100 : 0}%`}}/><input aria-label="播放进度" type="range" min="0" max={duration||0} step="0.1" value={position} disabled={!duration} style={{background:`linear-gradient(to right, #f1f4f7 ${duration ? position/duration*100 : 0}%, transparent 0)`}} onChange={e=>{if(ref.current) ref.current.currentTime=Number(e.target.value);setPosition(Number(e.target.value));reveal();}}/></div>
         <div className="media-toolbar">
           <button className="media-play-toggle" aria-label={paused?'播放':'暂停'} title={paused?'播放（空格）':'暂停（空格）'} onClick={()=>void toggle()}>{paused?<PlayIcon/>:<PauseIcon/>}</button>

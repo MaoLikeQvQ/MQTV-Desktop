@@ -6,3 +6,5 @@ pub(crate) mod scripts;
 pub(crate) mod adapters;
 
 pub(crate) mod uc;
+
+mod authorization_refresh;
