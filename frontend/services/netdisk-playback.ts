@@ -48,7 +48,7 @@ export async function netdiskPlayback(share: string) {
   if (!isNetdiskShare(share)) throw new Error('不支持的网盘分享地址');
   const uc = isUcShare(share);
   const account = uc ? await readUcSettings() : null;
-  if (uc && (!account?.cached || !account.accountId)) throw new Error('请先在授权管理中授权 UC 网盘或验证内测码');
+  if (uc && (!account?.cached || !account.accountId)) throw new Error('请先在授权管理中扫码登录 UC，或在基础设置中验证邀请码');
   const identity = JSON.stringify([account?.accountId, share]);
   /** 读取绑定账号的完整目录，夸克继续兼容原有缓存格式。 */
   function readCache(search = false): UcEpisode[] | null {

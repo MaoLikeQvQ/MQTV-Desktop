@@ -74,7 +74,7 @@ async fn missing_saved_code_explains_verification_without_a_request() {
     .await
     .err()
     .unwrap();
-    assert!(error.contains("请先使用授权码验证"));
+    assert!(error.contains("请先在基础设置中验证"));
 }
 
 /// 本机后台 fixture 检查真正的 POST 请求体，使用人工授权码且不读取本机凭据。

@@ -1,6 +1,6 @@
 import { invokePlayback } from '@/platform/playback-request';
 
-export type QuarkAccount = { cached: boolean; accountId?: string; name?: string; local?: boolean };
+export type QuarkAccount = { cached: boolean; accountId?: string; name?: string; local?: boolean; invitationVerified?: boolean };
 export type QuarkLoginSession = { id: string; scanUrl: string };
 export type QuarkEpisode = { id: string; name: string; path?: string; size?: number; parent: string; page: number };
 export type QuarkFile = { id: string; name: string; folder: boolean; size?: number; video: boolean };
@@ -15,7 +15,7 @@ export const createQuarkLogin = () => invokePlayback<QuarkLoginSession>('quark_q
 export const pollQuarkLogin = (id: string | undefined) => invokePlayback<{ state: string }>('quark_qr_poll', { id });
 /** 取消指定扫码会话，阻止关闭弹窗后的会话继续完成授权。 */
 export const cancelQuarkLogin = (id: string) => invokePlayback('quark_qr_cancel', { id });
-/** 提交内测授权码领取夸克授权，成功后由原生层保存凭证。 */
+/** 验证邀请码并领取夸克授权，成功后由原生层保存凭证。 */
 export const authorizeQuarkCode = (authorizationCode: string) => invokePlayback<QuarkAccount>('quark_authorize_code', { authorizationCode });
 /** 向指定夸克线路站点搜索片名，返回解析后的搜索条目。 */
 export const searchQuarkLine = (site: string, keyword: string) => invokePlayback<QuarkSearchItem[]>('quark_line_search', { site, keyword });
@@ -39,5 +39,5 @@ export const readQuarkInfo = (url: string) => invokePlayback<{ shares: string[];
 /** 读取当前夸克媒体会话累计下载字节；非当前代理地址返回 null，不发起测速下载。 */
 export const readQuarkDownloadedBytes = (url: string) => invokePlayback<number | null>('quark_downloaded_bytes', { url });
 
-/** 主动从后台刷新托管账号；原生复用已保存授权码，扫码账号保留，失败不替换旧授权。 */
+/** 主动从后台刷新托管账号；原生复用已验证的邀请码，扫码账号保留，失败不替换旧授权。 */
 export const refreshQuarkAuthorization = () => invokePlayback<QuarkAccount & { refreshed: boolean }>('quark_refresh');

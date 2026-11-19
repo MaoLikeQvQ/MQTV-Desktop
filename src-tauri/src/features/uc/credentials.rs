@@ -9,6 +9,8 @@ pub(super) struct Settings {
     pub(super) backend: String,
     #[serde(default)]
     pub(super) authorization_code: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(super) invitation_verified: bool,
     pub(super) lease: Option<Value>,
     #[serde(default)]
     pub(super) saved: std::collections::BTreeMap<String, String>,
@@ -18,14 +20,16 @@ const SECRET: &str = "uc-authorization";
 /// 后台统一使用构建环境配置；切换环境时清除后台租约，保留本地扫码账号及其他字段。
 fn normalize(mut settings: Settings) -> Result<Settings, String> {
     let backend = crate::config::backend_url()?.to_string();
-    if settings.backend != backend
-        && !settings
+    if settings.backend != backend {
+        settings.invitation_verified = false;
+        if !settings
             .lease
             .as_ref()
-            .is_some_and(|l| l["source"] == "local")
-    {
-        settings.lease = None;
-        settings.saved.clear();
+            .is_some_and(|lease| lease["source"] == "local")
+        {
+            settings.lease = None;
+            settings.saved.clear();
+        }
     }
     settings.backend = backend;
     Ok(settings)
@@ -34,7 +38,23 @@ fn normalize(mut settings: Settings) -> Result<Settings, String> {
 /// 只读取 SQLite 中的加密凭证；缺少记录时返回默认设置，解密失败不回退。
 pub(super) fn load() -> Result<Settings, String> {
     match crate::storage::secret_load(SECRET)? {
-        Some(bytes) => normalize(serde_json::from_slice(&bytes).map_err(|_| "本地授权数据无效")?),
+        Some(bytes) => {
+            let mut settings =
+                normalize(serde_json::from_slice(&bytes).map_err(|_| "本地授权数据无效")?)?;
+            // 已用当前后台领取过托管账号的旧版本也通过了验证。
+            if settings
+                .authorization_code
+                .as_deref()
+                .is_some_and(|code| !code.trim().is_empty())
+                && settings
+                    .lease
+                    .as_ref()
+                    .is_some_and(|lease| lease["source"] != "local")
+            {
+                settings.invitation_verified = true;
+            }
+            Ok(settings)
+        }
         None => Ok(Settings {
             backend: crate::config::backend_url()?.to_string(),
             ..Settings::default()

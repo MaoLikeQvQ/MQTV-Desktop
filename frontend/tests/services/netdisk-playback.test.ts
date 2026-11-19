@@ -62,7 +62,7 @@ it('dispatches UC and Quark playback separately and rejects a stale UC account',
 });
 it('requires UC authorization without preventing unbound Quark playback', async () => {
   mocks.readUcSettings.mockResolvedValue({ cached: false });
-  await expect(netdiskPlayback(uc)).rejects.toThrow('授权 UC');
+  await expect(netdiskPlayback(uc)).rejects.toThrow('扫码登录 UC');
   await expect(netdiskPlayback(quark)).resolves.toBeDefined();
   await expect(netdiskPlayback('https://evil.test/s/a')).rejects.toThrow('不支持');
 });

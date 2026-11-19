@@ -1,6 +1,6 @@
 import { invokePlayback } from '@/platform/playback-request';
 
-export type UcAccount = { cached: boolean; accountId?: string; name?: string; local?: boolean };
+export type UcAccount = { cached: boolean; accountId?: string; name?: string; local?: boolean; invitationVerified?: boolean };
 export type UcLoginSession = { id: string; scanUrl: string };
 export type UcEpisode = { id: string; name: string; path?: string; size?: number; parent: string; page: number };
 export type UcFile = { id: string; name: string; folder: boolean; size?: number; video: boolean };
@@ -14,7 +14,7 @@ export const createUcLogin = () => invokePlayback<UcLoginSession>('uc_qr_create'
 export const pollUcLogin = (id: string | undefined) => invokePlayback<{ state: string }>('uc_qr_poll', { id });
 /** 取消指定扫码会话，阻止关闭弹窗后的会话继续完成授权。 */
 export const cancelUcLogin = (id: string) => invokePlayback('uc_qr_cancel', { id });
-/** 提交内测授权码领取UC授权，成功后由原生层保存凭证。 */
+/** 验证邀请码并领取UC授权，成功后由原生层保存凭证。 */
 export const authorizeUcCode = (authorizationCode: string) => invokePlayback<UcAccount>('uc_authorize_code', { authorizationCode });
 /** 请求线路详情并提取可用的UC分享链接。 */
 export const readUcDetail = (url: string) => invokePlayback<string[]>('uc_line_detail', { url });
@@ -39,5 +39,5 @@ export const readUcDownloadedBytes = (url: string) => invokePlayback<number | nu
 /** 读取玩偶详情中的夸克与 UC 分享及简介，由原生层完成一次页面请求。 */
 export const readNetdiskInfo = (url: string) => invokePlayback<{ shares: string[]; synopsis: string }>('netdisk_line_info', { url });
 
-/** 主动从后台刷新托管账号；原生复用已保存授权码，扫码账号保留，失败不替换旧授权。 */
+/** 主动从后台刷新托管账号；原生复用已验证的邀请码，扫码账号保留，失败不替换旧授权。 */
 export const refreshUcAuthorization = () => invokePlayback<UcAccount & { refreshed: boolean }>('uc_refresh');

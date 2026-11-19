@@ -50,12 +50,13 @@ fn configured_backend_replaces_stored_backend() {
     for local in [false, true] {
         let lease = json!({"source": if local { "local" } else { "server" }, "accountId":"test"});
         let settings: Settings = serde_json::from_value(json!({
-            "backend":"https://old-backend.invalid/", "authorization_code":"test-code",
+            "backend":"https://old-backend.invalid/", "authorization_code":"test-code", "invitation_verified":true,
             "lease":lease, "saved":{"file":"saved-file"}
         })).unwrap();
         let normalized = normalize(settings).unwrap();
         assert_eq!(normalized.backend, crate::config::backend_url().unwrap().as_str());
         assert_eq!(normalized.authorization_code.as_deref(), Some("test-code"));
+        assert!(!normalized.invitation_verified);
         assert_eq!(normalized.saved.get("file").map(String::as_str), Some("saved-file"));
         assert_eq!(normalized.lease, if local { Some(lease) } else { None });
     }

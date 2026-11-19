@@ -4,9 +4,9 @@ use super::{
 };
 use serde_json::{Value, json};
 
-/// 提取供前端展示的授权状态与账号元信息，不返回 Cookie 和授权码。
+/// 提取账号元信息和邀请码验证状态，凭证保留在原生层。
 fn metadata(s: &Settings) -> Value {
-    json!({"backend":s.backend,"cached":s.lease.is_some(),"accountId":s.lease.as_ref().and_then(|l|l.get("accountId")),"verifiedAt":s.lease.as_ref().and_then(|l|l.get("verifiedAt")),"name":s.lease.as_ref().and_then(|l|l.get("name")),"local":s.lease.as_ref().is_some_and(|l|l["source"] == "local")})
+    json!({"backend":s.backend,"cached":s.lease.is_some(),"invitationVerified":s.invitation_verified,"accountId":s.lease.as_ref().and_then(|l|l.get("accountId")),"verifiedAt":s.lease.as_ref().and_then(|l|l.get("verifiedAt")),"name":s.lease.as_ref().and_then(|l|l.get("name")),"local":s.lease.as_ref().is_some_and(|l|l["source"] == "local")})
 }
 /// 读取环境配置后台的授权状态；保留旧命令参数，但拒绝覆盖环境配置。
 #[tauri::command]
@@ -32,7 +32,7 @@ pub(super) async fn lease(s: &mut Settings, excluded: &[String]) -> Result<Value
         .authorization_code
         .as_deref()
         .filter(|c| !c.is_empty())
-        .ok_or("请在授权管理中输入内测授权码，或使用扫码授权")?;
+        .ok_or("请在基础设置中验证邀请码，或使用扫码授权")?;
     let url = crate::config::uc_authorization_endpoint()?;
     let r = client()?
         .post(url)
@@ -41,7 +41,7 @@ pub(super) async fn lease(s: &mut Settings, excluded: &[String]) -> Result<Value
         .await
         .map_err(|_| "授权服务连接失败；不会清除本地授权")?;
     if r.status() == reqwest::StatusCode::UNAUTHORIZED {
-        return Err("内测授权码缺失或错误".into());
+        return Err("邀请码缺失或错误".into());
     }
     if !r.status().is_success() {
         return Err(format!(
@@ -51,6 +51,7 @@ pub(super) async fn lease(s: &mut Settings, excluded: &[String]) -> Result<Value
     }
     let data: Value = r.json().await.map_err(|_| "授权响应无效")?;
     validate_lease(&data)?;
+    s.invitation_verified = true;
     s.lease = Some(data.clone());
     save(s)?;
     Ok(data)
@@ -71,7 +72,7 @@ pub async fn uc_authorize() -> Result<Value, String> {
 pub async fn uc_authorize_code(authorization_code: String) -> Result<Value, String> {
     let code = authorization_code.trim();
     if code.is_empty() || code.len() > 128 {
-        return Err("请输入有效的内测授权码".into());
+        return Err("请输入有效的邀请码".into());
     }
     let _guard = LOCK.lock().await;
     let mut settings = load()?;
@@ -114,6 +115,7 @@ pub async fn uc_refresh() -> Result<Value, String> {
     )
     .await?;
     if let Some(replacement) = replacement {
+        settings.invitation_verified = true;
         settings.authorization_code = Some(replacement.code);
         settings.lease = Some(replacement.lease);
         settings.saved.clear();

@@ -103,7 +103,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 设置 → 基础设置 → 版本更新，点击右侧图标手动检查。客户端使用默认资源服务同源的 tvadmin /api/update，发送实际平台（macos/windows）、架构、系统版本、应用标识和构建号。发现兼容的新版后展示版本说明，点击“下载新版”通过系统浏览器下载安装包，再手动安装；暂无兼容版本和请求失败分别提示。
 
-发布时同步提升 Tauri 应用版本和 src-tauri/src/commands/app.rs 的 APP_BUILD（当前为 102）；tvadmin 上传对应安装包时，应用标识填写 com.maolike.mqtv.desktop、客户端类型为 desktop，构建号必须大于已安装版本，选择对应平台、架构与最低系统版本，并发布后才会被检查接口返回。更新服务、默认资源订阅与图片代理统一使用根目录环境变量 VITE_API_BASE_URL，默认值见 .env。
+发布时同步提升 Tauri 应用版本和 src-tauri/src/commands/app.rs 的 APP_BUILD（当前为 103）；tvadmin 上传对应安装包时，应用标识填写 com.maolike.mqtv.desktop、客户端类型为 desktop，构建号必须大于已安装版本，选择对应平台、架构与最低系统版本，并发布后才会被检查接口返回。更新服务、默认资源订阅与图片代理统一使用根目录环境变量 VITE_API_BASE_URL，默认值见 .env。
 后续 GitHub Release 标题仍统一为“应用名 + 空格 + 版本号”（例如 `晴雨影视 1.0.2`），不添加“测试版”、功能描述或其他后缀。GitHub Release 仅作存档，不作为客户端更新入口；私有仓库附件不能作为公开下载安装包地址。
 
 ## 动漫频道

@@ -91,10 +91,11 @@ function App() {
   const [customResources,setCustomResources]=useState(()=>readCustomResources(applicationStorage));
   const [url, setUrl] = useState(() => applicationStorage.getItem('mqtv-resource-mode') === 'default' ? DEFAULT_URL : resolveResourceUrl(applicationStorage.getItem('mqtv-feed-url')));
   const [resourceMode, setResourceMode] = useState<'default' | 'custom'>(() => applicationStorage.getItem('mqtv-resource-mode') === 'custom' ? 'custom' : url === DEFAULT_URL ? 'default' : 'custom');
-  const [updatedAt, setUpdatedAt] = useState(() => readResourceCache(applicationStorage, url)?.updatedAt);
+  const [updatedAt, setUpdatedAt] = useState<number>();
+  const [inviteVerified, setInviteVerified] = useState(false);
   const syncLock = useRef(false);
   const [feed, setFeed] = useState<Feed | null>(() => {
-    try { return resourceMode === 'default' ? readResourceCache(applicationStorage, url)?.feed ?? null : parseFeed(JSON.parse(applicationStorage.getItem('mqtv-feed') || 'null')); } catch { return null; }
+    try { return resourceMode === 'default' ? null : parseFeed(JSON.parse(applicationStorage.getItem('mqtv-feed') || 'null')); } catch { return null; }
   });
   const [query, setQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState(() => readSearchHistory(applicationStorage));
@@ -258,10 +259,15 @@ function App() {
    * @param notify 是否展示连接成功提示。
    * @param mode 要切换或同步的资源模式。
    * @param forceRefresh 是否跳过默认资源缓存，主动获取最新资源。
+   * @param allowDefault 启动时使用刚读取的验证结果，其他入口使用当前验证状态。
    * @returns 是否同步成功；请求和保存完成后弹出结果消息。
    */
-  async function sync(address = url, notify = true, mode = resourceMode, forceRefresh = false) {
+  async function sync(address = url, notify = true, mode = resourceMode, forceRefresh = false, allowDefault = inviteVerified) {
     if (!desktop || syncLock.current) return false;
+    if (mode === 'default' && !allowDefault) {
+      setMessage({ text: '请先在基础设置中验证邀请码。', error: true });
+      return false;
+    }
     syncLock.current = true;
     setSyncing(true); setMessage(null);
     try {
@@ -275,7 +281,6 @@ function App() {
       }
       const result = await readResourceFeed(applicationStorage, address, mode === 'default' && !forceRefresh);
       const next = result.feed;
-      await Promise.all([readQuarkSettings(), readUcSettings()]);
       applicationStorage.setItem('mqtv-feed', JSON.stringify(next));
       applicationStorage.setItem('mqtv-feed-url', address);
       applicationStorage.setItem('mqtv-resource-mode', mode);
@@ -297,9 +302,33 @@ function App() {
       setResults([]);setSubmittedQuery('');
     } finally {syncLock.current=false;setSyncing(false);}
   }
-  useEffect(() => { if (desktop && !playerWindow) void sync(url, false); }, []);
   useEffect(() => {
-    if (!desktop || playerWindow || resourceMode !== 'default') return;
+    if (!desktop || playerWindow) return;
+    let active = true;
+    /** 先读取原生验证状态，再恢复默认缓存或加载自定义资源。 */
+    async function restoreResources() {
+      const accounts = await Promise.allSettled([readQuarkSettings(), readUcSettings()]);
+      if (!active) return;
+      const verified = accounts.some(result => result.status === 'fulfilled' && result.value.invitationVerified === true);
+      setInviteVerified(current => current || verified);
+      if (resourceMode === 'default' && verified) {
+        const cached = readResourceCache(applicationStorage, url);
+        setFeed(cached?.feed ?? null);
+        setUpdatedAt(cached?.updatedAt);
+        await sync(url, false, 'default', false, true);
+      } else {
+        setResourceMode('custom');
+        await sync(url, false, 'custom');
+      }
+      if (active && accounts.every(result => result.status === 'rejected')) {
+        setMessage({ text: '无法读取邀请码验证状态，请在基础设置中重新验证。', error: true });
+      }
+    }
+    void restoreResources();
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    if (!desktop || playerWindow || resourceMode !== 'default' || !inviteVerified) return;
     /** 页面恢复可见或定时检查时刷新超过七天有效期的默认资源。 */
     const check = () => {
       if (!document.hidden && !resourceCacheFresh(readResourceCache(applicationStorage, DEFAULT_URL))) void sync(DEFAULT_URL, false, 'default');
@@ -307,7 +336,7 @@ function App() {
     const timer = setInterval(check, 60_000);
     document.addEventListener('visibilitychange', check);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', check); };
-  }, [resourceMode, url]);
+  }, [resourceMode, url, inviteVerified]);
 
   /** 搜索优先调度已适配的网盘来源，同类按质量评分排序；并发增量展示结果并记录允许评分来源的统计。 */
   async function search(term = query) {
@@ -543,7 +572,7 @@ function App() {
         </div>
       </section> : <section className={`page page-enter ${page === 'search' ? 'search-page' : page === 'settings' ? 'settings-page' : ''}`} key={page}>
         {page === 'settings' && <>
-          <h1>{settingsTab === 'basic' ? '基础设置' : settingsTab === 'resources' ? '资源服务' : '授权管理'}</h1><p className="page-description">{settingsTab === 'basic' ? '查看当前版本并检查更新。' : settingsTab === 'resources' ? '配置影片资源服务地址。' : '管理保存在本机的网盘授权。'}</p>
+          <h1>{settingsTab === 'basic' ? '基础设置' : settingsTab === 'resources' ? '资源服务' : '授权管理'}</h1><p className="page-description">{settingsTab === 'basic' ? '管理邀请码及检查更新。' : settingsTab === 'resources' ? '配置影片资源服务地址。' : '管理保存在本机的网盘授权。'}</p>
         </>}
         {!playerWindow && page === 'history' && <RecentPlayback records={history} onResume={record => void open(record.vod, null, record)} onRemove={id => {
           if (desktop) {
@@ -568,8 +597,8 @@ function App() {
           </div>}
         </>}
         {!playerWindow && channels.some(item => item.id === page) && <Discovery onLoadingChange={setPageLoading} channel={page as Channel} disabled={busy} onPick={title => { setQuery(title); navigate('search'); void search(title); }} />}
-        {page === 'settings' && settingsTab === 'basic' && <BasicSettings />}
-        {page === 'settings' && settingsTab === 'resources' && <ResourceSettings mode={resourceMode} busy={busy || !desktop} count={feed?.count} updatedAt={updatedAt} entries={customResources} onMode={mode=>sync(DEFAULT_URL,false,mode)} onRefresh={()=>sync(DEFAULT_URL,true,'default',true)} onChange={updateCustomResources} />}
+        {page === 'settings' && settingsTab === 'basic' && <BasicSettings onInviteVerified={() => setInviteVerified(true)} />}
+        {page === 'settings' && settingsTab === 'resources' && <ResourceSettings mode={resourceMode} busy={busy || !desktop} count={feed?.count} updatedAt={updatedAt} entries={customResources} inviteVerified={inviteVerified} onMode={mode=>sync(DEFAULT_URL,false,mode)} onRefresh={()=>sync(DEFAULT_URL,true,'default',true)} onChange={updateCustomResources} />}
         {page === 'settings' && settingsTab === 'authorizations' && <NetdiskSettings />}
       </section>}
       <footer className="page-footer"><span>MQTV · 每一个好故事，都值得被发现。</span><span>{versionLabel}</span></footer>

@@ -26,7 +26,7 @@ where
         .or(fallback_code.filter(|code| !code.trim().is_empty()))
         .map(str::trim)
         .filter(|code| code.len() <= 128)
-        .ok_or("没有已验证的内测授权码，请先使用授权码验证后再刷新")?
+        .ok_or("没有已验证的邀请码，请先在基础设置中验证后再刷新")?
         .to_owned();
     let lease = fetch(code.clone()).await?;
     let cookie = lease["credential"]["cookie"].as_str().unwrap_or_default();
@@ -61,7 +61,7 @@ async fn request_at(endpoint: reqwest::Url, code: String) -> Result<Value, Strin
         .await
         .map_err(|_| "授权服务连接失败，原授权已保留")?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        return Err("内测授权码已失效，请重新验证；原授权已保留".into());
+        return Err("邀请码已失效，请在基础设置中重新验证；原授权已保留".into());
     }
     if !response.status().is_success() {
         return Err(format!(
