@@ -1,64 +1,7 @@
-# GitHub 本地打包发布
+# GitHub Releases 历史说明
 
-客户端已恢复使用 tvadmin `/api/update` 检查更新，安装包通过后台同源的 `/api/apk/<id>` 下载。仓库已设为私有，GitHub Releases 仅用于维护者存档，私有附件不能作为客户端公开更新地址。当前发布步骤见 [桌面版本更新](development.md#桌面版本更新)。
+桌面版 1.0.1 曾通过 GitHub Releases 的更新清单检查更新。该版本的 GitHub 发行附件和仓库中的清单均已移除。
 
-以下更新清单及附件发布步骤保留为原 GitHub 渠道的历史参考，不再是当前客户端更新流程。
+当前桌面版通过 tvadmin 的 `/api/update` 检查更新，安装包由同一后台的 `/api/apk/<id>` 提供。打包、签名和发布步骤见 [桌面版本更新](development.md#桌面版本更新)。
 
-## Release 命名
-
-后续 Release 标题统一使用“应用名 + 空格 + 版本号”，例如 `晴雨影视 1.0.2`。标题不添加“测试版”、功能描述或其他后缀；更新内容及实际验证、签名情况写在发布说明中。Git 标签继续使用 `v<版本号>`，例如 `v1.0.2`。
-
-## 更新清单
-
-客户端读取：
-
-```text
-https://github.com/MaoLikeQvQ/MQTV-Desktop/releases/latest/download/desktop-update.json
-```
-
-`releases/desktop-update.json` 是可直接编辑的清单，当前描述 1.0.1 / 构建 101 公开测试版。字段含义：
-
-- `schemaVersion` 固定为 `1`；`packageName` 固定为 `com.maolike.mqtv.desktop`。
-- `versionCode` 对应原生 `APP_BUILD`，每次发布必须递增；`versionName` 对应 Tauri 版本。
-- `notes` 为展示给用户的纯文本版本说明。
-- `packages` 每个平台和架构最多一个安装包：`platform` 为 `macos` / `windows`，`arch` 为 `arm64` / `x64` / `ia32`。
-- `downloadUrl` 必须为本仓库 `/releases/download/<tag>/<附件名>` 的 HTTPS 直接下载链接。Mac 使用 `.dmg` / `.pkg`，Windows 使用 `.exe` / `.msi`。
-- 可选 `minOsVersion` 为点分数字系统版本，例如 `14.0` 或 `10.0.19045`。填写实际支持的最低版本；未声明时不按系统版本进一步排除，不能据此声称所有系统均已验证。
-
-不匹配架构、低于最低系统版本或构建号不高于本机时，客户端显示暂无适用更新。清单格式或安装包地址错误则明确报错，不回退其他更新服务器。固定地址依赖 GitHub 的 Latest Release；预发布条目不作为此渠道的更新入口。
-
-## 本地打包并上传
-
-1. 同步修改 `src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 与根 `package.json` 的版本，并递增 `src-tauri/src/commands/app.rs` 的 `APP_BUILD`。按仓库约定更新 Cargo 锁定版本。
-2. 准备对应平台的 Python 运行时，沿用上一版签名身份，运行验证并在目标系统构建。Mac 和 Windows 分别使用对应的本地构建环境；Mac 构建不能代替 Windows 打包和运行验证。
-
-   ```sh
-   npm run runtime:prepare
-   npm run build
-   npx vitest run
-   npm run tauri build
-   ```
-
-3. 核对安装包签名、平台、架构和实际版本。正式包须遵守 `development.md` 的固定签名要求；当前已有测试 Release 的未签名/ad-hoc 包不代表满足正式发行要求。
-4. 修改 `releases/desktop-update.json` 的版本、说明和附件链接。只填写本次实际构建并核验的包，未构建的架构不要填入。
-5. 创建草稿 Release，将安装包与清单一并上传。以下参数需替换为本次真实标签和路径，发布说明使用 UTF-8 文本文件：
-
-   ```sh
-   gh release create <tag> /absolute/path/to/installer releases/desktop-update.json \
-     --repo MaoLikeQvQ/MQTV-Desktop --draft \
-     --title '晴雨影视 <版本号>' --notes-file /absolute/path/to/release-notes.md
-   ```
-
-6. 在 GitHub 检查草稿附件和说明，确保它们来自预期源码快照。正式发布前完成签名和目标系统验收，然后发布并设为 Latest：
-
-   ```sh
-   gh release edit <tag> --repo MaoLikeQvQ/MQTV-Desktop --draft=false --latest
-   ```
-
-7. 下载公开的 `latest/download/desktop-update.json` 确认内容，并从客户端检查匹配平台的新版本。不把“GitHub 上传成功”当作安装或播放验证。
-
-后续给同一版本添加其他平台安装包时，先上传安装包，再替换完整清单，避免清单引用尚不存在的附件。不要删除已有附件或复用附件名替换不同构建，保持版本对应关系清晰。
-
-## 现有客户端迁移
-
-已安装的旧版本仍包含 tvadmin 更新逻辑，不会因服务器新增清单而自动切换。需要安装包含本次修改的客户端后，后续检查才会走 GitHub。发布新客户端时，旧 tvadmin 更新入口可继续用于分发这一过渡版本；本次没有修改 tvadmin 或替换任何已安装应用。
+历史发行使用 `v<版本号>` 格式的 Git 标签，发行标题采用 `晴雨影视 <版本号>`。版本更新、平台验证和签名情况记录在对应版本的发布说明中。
